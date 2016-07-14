@@ -5,7 +5,7 @@ project(task1_vision_pkg)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-      roscpp cv_bridge image_transport tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs)
+      roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs)
 find_package(OpenCV REQUIRED)
 
 add_service_files(

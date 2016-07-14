@@ -11,7 +11,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-#include <image_geometry/pinhole_camera_model.h>
+// #include <image_geometry/pinhole_camera_model.h>
 #include <cv_bridge/cv_bridge.h>
 
 #include <geometry_msgs/PolygonStamped.h>

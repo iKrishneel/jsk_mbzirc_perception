@@ -9,10 +9,9 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include <geometry_msgs/PolygonStamped.h>
-#include <jsk_recognition_msgs/Rect.h>
 #include <sensor_msgs/Image.h>
 
-#include <image_geometry/pinhole_camera_model.h>
+// #include <image_geometry/pinhole_camera_model.h>
 #include <task1_vision_pkg/skeletonization/skeletonization_kernel.h>
 #include <task1_vision_pkg/Skeletonization.h>
 
