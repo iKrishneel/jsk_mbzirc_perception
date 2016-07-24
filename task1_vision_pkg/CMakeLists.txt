@@ -8,8 +8,11 @@ find_package(catkin REQUIRED COMPONENTS
       roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs)
 find_package(OpenCV REQUIRED)
 
+set(CAFFE_INCLUDEDIR caffe/include caffe/distribute/include caffe/build/include)
+set(CAFFE_LINK_LIBRARAY caffe/build/lib)
+
 add_service_files(
-    FILES
+  FILES
   NonMaximumSuppression.srv
   Skeletonization.srv)
 
@@ -27,7 +30,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 
-
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -37,7 +39,13 @@ catkin_package(
 set(PCL_INCLUDE_DIRS "/usr/include/pcl-1.7/")
 set(EIGEN_INCLUDE_DIRS "/usr/include/eigen3/")
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} 
+  ${PCL_INCLUDE_DIRS} 
+  ${EIGEN_INCLUDE_DIRS} 
+  #${CAFFE_INCLUDEDIR}
+)
+include_directories(${CAFFE_INCLUDEDIR})
+
 if(ENABLE_CUDA)
     find_package(CUDA REQUIRED)
     include(FindCUDA)
@@ -66,10 +74,11 @@ endif(ENABLE_CUDA)
 
 
 #build for landing site detection
-  add_executable(uav_detect_landing_region_node
-    src/uav_detect_landing_region_node.cpp
-    src/histogram_of_oriented_gradients.cpp
-    src/uav_detect_landing_region_trainer.cpp
-    )
-  target_link_libraries(uav_detect_landing_region_node ${catkin_LIBRARIES} ${OpenCV_LIBS} )
+link_directories(${CAFFE_LINK_LIBRARAY})
+add_executable(uav_detect_landing_region_node
+  src/uav_detect_landing_region_node.cpp
+  src/histogram_of_oriented_gradients.cpp
+  src/uav_detect_landing_region_trainer.cpp
+  )
+target_link_libraries(uav_detect_landing_region_node ${catkin_LIBRARIES} ${OpenCV_LIBS} caffe glog)
 

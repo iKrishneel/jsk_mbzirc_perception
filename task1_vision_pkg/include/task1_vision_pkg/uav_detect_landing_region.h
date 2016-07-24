@@ -32,9 +32,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <caffe/caffe.hpp>
 
 namespace jsk_msgs = jsk_mbzirc_msgs;
-// namespace jsk_tasks = jsk_mbzirc_tasks;
 namespace jsk_tasks = task1_vision_pkg;
 
 class UAVLandingRegion: public UAVLandingRegionTrainer {
