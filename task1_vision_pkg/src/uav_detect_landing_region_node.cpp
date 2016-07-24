@@ -41,8 +41,36 @@ UAVLandingRegion::UAVLandingRegion() :
     // this->svm_ = cv::Algorithm::load<cv::ml::SVM>(svm_path);
     
     ROS_INFO("\033[34m-- SVM DETECTOR SUCCESSFULLY LOADED \033[0m");
+
+
+    /**
+     * test detector
+     */
+    std::string video_path;
+    // video_path = "/home/krishneel/Desktop/mbzirc/track-data/DJI_0007.MOV";
+    video_path = "/home/krishneel/kdenlive/dji.mpg";
+    cv::VideoCapture cap(video_path);
+    if (!cap.isOpened()) {
+       ROS_ERROR("VIDEO NOT FOUND");
+       return;
+    }
+    int icounter = 0;
+    for (;;) {
+       cv::Mat frames;
+       cap >> frames;
+       cv::resize(frames, frames, cv::Size(320, 240));
+       this->traceandDetectLandingMarker(frames, frames,
+                                            cv::Size(20, 20));
+       std::cout << "PROCESSING: " <<  icounter++ << "\n";
+
+       cv::namedWindow("image", cv::WINDOW_NORMAL);
+       cv::imshow("image", frames);
+       if (cv::waitKey(30) >= 0) {
+          break;
+       }
+    }
     
-    this->onInit();
+    // this->onInit();
 }
 
 void UAVLandingRegion::onInit() {
@@ -113,7 +141,6 @@ void UAVLandingRegion::imageCB(
     std::cout << "\033[34m Window Size:  \033[0m" << wsize  << "\n";
     
     ROS_INFO("\033[34m DETECTION \033[0m");
-    
     cv::Point2f marker_point = this->traceandDetectLandingMarker(
        image, im_mask, wsize);
     if (marker_point.x == -1) {
@@ -211,7 +238,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
        cv::cvtColor(image, image, CV_BGR2GRAY);
     }
 
-    cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
+    // cv::GaussianBlur(img, img, cv::Size(3, 3), 1, 0);
     
     cv::Mat im_edge;
     cv::Canny(image, im_edge, 50, 100);
@@ -223,9 +250,11 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(this->num_threads_)
 #endif
-    for (int j = 0; j < im_edge.rows; j += 2) {
-       for (int i = 0; i < im_edge.cols; i += 2) {
-          if (static_cast<int>(im_edge.at<uchar>(j, i)) != 0) {
+    for (int j = 0; j < im_edge.rows; j += 4) {
+       for (int i = 0; i < im_edge.cols; i += 4) {
+          
+          // if (static_cast<int>(im_edge.at<uchar>(j, i)) != 0)
+          {
              cv::Rect rect = cv::Rect(i, j, wsize.width, wsize.height);
              if (rect.x + rect.width < image.cols &&
                  rect.y + rect.height < image.rows) {

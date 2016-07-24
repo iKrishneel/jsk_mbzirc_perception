@@ -1,0 +1,15 @@
+<launch>
+  <arg name="image" default="/camera/rgb/image_rect_color" />
+  <node pkg="task1_vision_pkg" type="uav_tracking_node"  name="uav_tracking" output="screen" >
+    <remap from="input" to="$(arg image)" />
+    <remap from="input_screen" to="$(arg image)/screenrectangle"/>
+  </node>
+  <node pkg="image_view2" type="image_view2"
+        name="uav_tracking_image_view2" output="screen">
+    <remap from="image" to="$(arg image)" />
+  </node>
+  <node pkg="image_view" type="image_view"
+        name="image_view" output="screen">
+    <remap from="image" to="/uav_tracking/output/image"/>
+  </node>
+</launch>

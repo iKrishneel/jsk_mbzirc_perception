@@ -73,3 +73,16 @@ endif(ENABLE_CUDA)
     )
   target_link_libraries(uav_detect_landing_region_node ${catkin_LIBRARIES} ${OpenCV_LIBS} )
 
+
+#build for tracking
+if (OpenCV_VERSION VERSION_GREATER "3.0")
+  add_executable(uav_tracking_node
+    src/tracking/uav_tracking_node.cpp
+    src/tracking/CMT.cpp
+    src/tracking/keypoint_classifier.cpp
+    )
+
+  target_link_libraries(uav_tracking_node
+    ${catkin_LIBRARIES} ${OpenCV_LIBS} 
+    )
+endif()
