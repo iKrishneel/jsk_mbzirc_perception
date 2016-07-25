@@ -13,9 +13,9 @@
 
 // #include <image_geometry/pinhole_camera_model.h>
 #include <task1_vision_pkg/skeletonization/skeletonization_kernel.h>
-#include <task1_vision_pkg/Skeletonization.h>
+// #include <task1_vision_pkg/Skeletonization.h>
 
-namespace jsk_tasks = task1_vision_pkg;
+// namespace jsk_tasks = task1_vision_pkg;
 
 class GPUSkeletonization {
 
@@ -33,8 +33,8 @@ class GPUSkeletonization {
  public:
     GPUSkeletonization();
     void callback(const sensor_msgs::Image::ConstPtr &);
-    bool skeletonizationGPUSrv(jsk_tasks::Skeletonization::Request &,
-                               jsk_tasks::Skeletonization::Response &);
+    // bool skeletonizationGPUSrv(jsk_tasks::Skeletonization::Request &,
+    //                            jsk_tasks::Skeletonization::Response &);
 };
 
 

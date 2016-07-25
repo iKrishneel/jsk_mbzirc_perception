@@ -61,7 +61,7 @@ void GPUSkeletonization::callback(
     this->pub_image_.publish(cv_ptr->toImageMsg());
 }
 
-
+/*
 bool GPUSkeletonization::skeletonizationGPUSrv(
     jsk_tasks::Skeletonization::Request &request,
     jsk_tasks::Skeletonization::Response &response) {
@@ -80,7 +80,7 @@ bool GPUSkeletonization::skeletonizationGPUSrv(
                                                //! INSTEAD
     return true;
 }
-
+*/
 
 int main(int argc, char *argv[]) {
 
