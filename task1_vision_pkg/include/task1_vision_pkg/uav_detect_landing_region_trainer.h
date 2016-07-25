@@ -5,14 +5,15 @@
 
 #include <ros/ros.h>
 #include <ros/console.h>
-
 #include <task1_vision_pkg/histogram_of_oriented_gradients.h>
 #include <fstream>
 
+#include <boost/thread/mutex.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <boost/thread/mutex.hpp>
+#include <opencv2/cudaobjdetect.hpp>
+#include <opencv2/cudaimgproc.hpp>
 
 class UAVLandingRegionTrainer {
 
@@ -21,7 +22,9 @@ class UAVLandingRegionTrainer {
     std::string positive_data_path_;
     std::string negative_data_path_;
     std::string data_directory_;
-   
+
+    cv::Ptr<cv::cuda::HOG> cuda_hog_;
+
  public:
     UAVLandingRegionTrainer();
     void trainUAVLandingRegionDetector(const std::string, const std::string,

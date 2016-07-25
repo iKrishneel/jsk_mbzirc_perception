@@ -3,7 +3,7 @@
 
 UAVTracker::UAVTracker():
     block_size_(10), tracker_init_(false), object_init_(false),
-    down_size_(2), is_type_automatic_(!true) {
+    down_size_(2), is_type_automatic_(true) {
     this->onInit();
 }
 
@@ -11,7 +11,7 @@ void UAVTracker::onInit() {
     this->subscribe();
     this->pub_image_ = pnh_.advertise<sensor_msgs::Image>(
        "/uav_tracking/output/image", sizeof(char));
-    this->pub_rect_ = pnh_.advertise<jsk_recognition_msgs::Rect>(
+    this->pub_rect_ = pnh_.advertise<jsk_mbzirc_msgs::Rect>(
        "/uav_tracking/output/rect", sizeof(char));
 }
 
@@ -82,7 +82,7 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     cv::line(img, this->bottomRight, this->bottomLeft, color, 3);
     cv::line(img, this->bottomLeft, this->topLeft, color, 3);
 
-    jsk_recognition_msgs::Rect jsk_rect;
+    jsk_mbzirc_msgs::Rect jsk_rect;
     jsk_rect.x = this->topLeft.x;
     jsk_rect.y = this->topLeft.y;
     jsk_rect.width = (this->bottomRight.x - jsk_rect.x);

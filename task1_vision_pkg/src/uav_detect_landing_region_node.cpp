@@ -139,6 +139,9 @@ void UAVLandingRegion::trialImageCB(
     int y = marker_point.y - (wsize.height / 2);
     int width = wsize.width;
     int height = wsize.height;
+
+    cv::Rect rect(x, y, width, height);
+    cv::rectangle(image, rect, cv::Scalar(0, 255, 0), 2);
     
     x = (x < 0) ? 0 : x;
     y = (y < 0) ? 0 : y;
@@ -295,7 +298,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
        cv::cvtColor(image, image, CV_BGR2GRAY);
     }
 
-    // cv::GaussianBlur(img, img, cv::Size(3, 3), 1, 0);
+    // cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
     
     cv::Mat im_edge = image.clone();
     // cv::Canny(image, im_edge, 50, 100);
@@ -328,6 +331,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
                 cv::Mat desc = this->extractFeauture(roi);
                 
                 float response = this->svm_->predict(desc);
+                
                 if (response == 1) {
                    jsk_msgs::Rect bbox;
                    bbox.x = rect.x;

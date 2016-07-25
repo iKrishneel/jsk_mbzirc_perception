@@ -7,6 +7,7 @@ UAVLandingRegionTrainer::UAVLandingRegionTrainer() :
        new HOGFeatureDescriptor());
 
     this->sliding_window_size_ = cv::Size(32, 32);
+    this->cuda_hog_ = cv::cuda::HOG::create(this->sliding_window_size_);
 }
 
 void UAVLandingRegionTrainer::trainUAVLandingRegionDetector(
@@ -78,24 +79,20 @@ void UAVLandingRegionTrainer::getTrainingDataset(
              }
           }
        }
-    }
-   
+    }  
     std::cout << "Training Dataset Reading Completed......" << std::endl;
 }
-
 
 cv::Mat UAVLandingRegionTrainer::extractFeauture(
     cv::Mat &image) {
     if (image.empty()) {
       return cv::Mat();
     }
-    cv::resize(image, image, this->sliding_window_size_);
     cv::Mat desc = this->hog_->computeHOG(image);
-    
     //! regionlets
     cv::Size wsize = cv::Size(image.size().width/2, image.size().height/2);
     cv::Mat region_desc = this->regionletFeatures(image, wsize);
-    cv::hconcat(desc, region_desc, desc);
+    // cv::hconcat(desc, region_desc, desc);
     return desc;
 }
 
