@@ -2,6 +2,8 @@
     <arg name="image" default="/camera/rgb/image_rect_color" />
     <arg name="roi_rect" default="/uav_landing_region/output/roi_rect" />
 
+    <arg name="detector_type" default="DETECTOR" />
+
     <node pkg="task1_vision_pkg" type="uav_detect_landing_region_node"
 	name="uav_detect_landing_region" output="screen" clear_params="true" >
       <remap from="input_image" to="$(arg image)" />
@@ -18,6 +20,11 @@
 
       <param name="data_directory" value="$(find task1_vision_pkg)/" />
       <remap from="data_directory" to="/uav_detect_landing_region/data_directory" />
+      
+      <!-- run type: detector or bootstrap -->
+      <param name="detector_type" value="$(arg detector_type)" />
+      <remap from="detector_type" to = "/uav_detect_landing_region/detector_type" />
+
     </node>
   
   <node pkg="task1_vision_pkg" type="non_maximum_suppression.py"

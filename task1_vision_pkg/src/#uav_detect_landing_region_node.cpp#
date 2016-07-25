@@ -45,7 +45,7 @@ UAVLandingRegion::UAVLandingRegion() :
     //! detector mode % bootstrap
     this->pnh_.getParam("detector_type", this->type_flag_);
     std::cout << "RUN TYPE: " << this->type_flag_  << "\n";
-    if (this->type_flag_.empty()) {
+    if (type_flag_.empty()) {
        ROS_WARN("TYPE NOT SET: Setting to DETECTOR TYPE");
        this->type_flag_ = "DETECTOR";
     }
@@ -302,14 +302,10 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     cv::Mat weight = img.clone();
 
     jsk_tasks::NonMaximumSuppression nms_srv;
-
-    std::string time_name;
-    if (this->type_flag_ == "BOOTSTRAPER") {
-       boost::posix_time::ptime const date_time =
-          boost::posix_time::microsec_clock::local_time();
-       time_name = boost::posix_time::to_simple_string(date_time);
-       remove_if(time_name.begin(), time_name.end(), isspace);
-    }
+    
+    boost::posix_time::ptime const date_time =
+       boost::posix_time::microsec_clock::local_time();
+    std::string time_name =t boost::posix_time::o_simple_string(date_time);
     
     //! 1 - detect
 #ifdef _OPENMP
@@ -341,13 +337,8 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
                       if (this->type_flag_ == "DETECTOR") {
                          nms_srv.request.rect.push_back(bbox);
                          nms_srv.request.probabilities.push_back(response);
-                      } else if (this->type_flag_ == "BOOTSTRAPER") {
-                         std::ostringstream convert;
-                         convert << (i + (j * im_edge.cols));
-                         if (roi.data) {
-                            cv::imwrite(
-                               time_name + "_" + convert.str() + ".jpg", roi);
-                         }
+                      } else {
+                         
                       }
                    }
                    // cv::rectangle(weight, rect, cv::Scalar(0, 255, 0), 1);

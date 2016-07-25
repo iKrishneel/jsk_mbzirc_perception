@@ -34,6 +34,8 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 namespace jsk_msgs = jsk_mbzirc_msgs;
 namespace jsk_tasks = task1_vision_pkg;
 
@@ -61,7 +63,6 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     dynamic_reconfigure::Server<jsk_tasks::Task1VisionPkgConfig>  server_;
 
-
     //! message filters for trial
     typedef message_filters::sync_policies::ApproximateTime<
        sensor_msgs::Image, sensor_msgs::Image> TrialPolicy;
@@ -88,7 +89,8 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     //! control param based on height
     float detector_altitude_;
     bool is_publish_;
-
+    bool run_type_gazebo_;  //! callback for gazebo and trials
+    std::string type_flag_;  //! bootstrp the tracker
    
  protected:
     ros::NodeHandle pnh_;
