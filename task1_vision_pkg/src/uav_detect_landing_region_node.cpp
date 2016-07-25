@@ -65,26 +65,17 @@ UAVLandingRegion::UAVLandingRegion() :
     /**
      * READ TEXT
      */
-    char buffer[255];
     std::ifstream in_file;
-    in_file.open("/home/krishneel/Desktop/test.txt", std::ios::in);
-    cv::Mat test_features;
-    if (!in_file.eof()) {
-       while (in_file.good()) {
-          in_file.getline(buffer, 255);
-          std::string read_line(buffer);
-          if (!read_line.empty()) {
-             std::istringstream iss(read_line);
-             std::string val;
-             iss >> val;
-             float lab = std::atof(val.c_str());
-             test_features.push_back(lab);
-          }
-       }
-    } else {
-       ROS_ERROR("BAD FILE");
-    }
-    in_file.close();
+    in_file.open("/home/krishneel/Desktop/test_features.txt", std::ios::in);
+
+    std::vector<float> test_features;
+    std::copy(std::istream_iterator<float>(in_file),
+              std::istream_iterator<float>(),
+              std::back_inserter(test_features));
+
+
+
+    std::cout << test_features.size()  << "\n";
     
     float data[1764];
     caffe::Blob<float>* data_layer = net_->input_blobs()[0];
@@ -98,7 +89,7 @@ UAVLandingRegion::UAVLandingRegion() :
     float* input_data = data_layer->mutable_cpu_data();
     for (int i = 0; i < data_layer->height(); ++i) {
        // cv::Mat channel(height, width, CV_32FC1, input_data);
-       input_data[i] = test_features.at<float>(i, 0);
+       input_data[i] = test_features.at(i);
        // std::cout << input_data[0]  << "\n";
        // std::cout << channel.size()  << "\n";
        //   input_channels->push_back(channel);
@@ -107,10 +98,8 @@ UAVLandingRegion::UAVLandingRegion() :
     // for (int i = 0; i < input_channels->size(); i++) {
     //    std::cout << input_channels->at(i)  << "\n";
     // }
-
     
-    
-    LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");    
+    LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
     
     // boost::shared_ptr<caffe::Blob<float> > probLayer = net_->blob_by_name("prob");
     // const float* probs_out = probLayer->cpu_data();
