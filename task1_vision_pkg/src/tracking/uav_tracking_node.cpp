@@ -3,7 +3,7 @@
 
 UAVTracker::UAVTracker():
     block_size_(10), tracker_init_(false), object_init_(false),
-    down_size_(2) {
+    down_size_(2), is_type_automatic_(!true) {
     this->onInit();
 }
 
@@ -16,8 +16,20 @@ void UAVTracker::onInit() {
 }
 
 void UAVTracker::subscribe() {
-    this->sub_screen_pt_ = this->pnh_.subscribe(
-       "input_screen", 1, &UAVTracker::screenPointCallback, this);
+
+    if (!is_type_automatic_) {
+       this->sub_screen_pt_ = this->pnh_.subscribe(
+          "input_screen", 1, &UAVTracker::screenPointCallback, this);
+    } else {
+       this->init_img_.subscribe(this->pnh_, "init_image", 1);
+       this->init_rect_.subscribe(this->pnh_, "input_screen", 1);
+       this->sync_ = boost::make_shared<message_filters::Synchronizer<
+                                           SyncPolicy> >(100);
+       this->sync_->connectInput(this->init_img_, this->init_rect_);
+       this->sync_->registerCallback(
+          boost::bind(&UAVTracker::screenPointCallbackAuto, this, _1, _2));
+    }
+    
     this->sub_image_ = pnh_.subscribe(
        "input", 1, &UAVTracker::callback, this);
 }
@@ -47,10 +59,14 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     cv::Point2f init_br = cv::Point2f(
        init_tl.x + (this->screen_rect_.width / this->down_size_),
        init_tl.y + (this->screen_rect_.height / this->down_size_));
+    
     cv::Mat im_gray;
     cv::Mat img = image.clone();
     cv::cvtColor(image, im_gray, CV_RGB2GRAY);
     if (!tracker_init_) {
+       if (this->is_type_automatic_) {
+          cv::cvtColor(this->init_image_, im_gray, CV_RGB2GRAY);
+       }
        this->initialise(im_gray, init_tl, init_br);
        this->tracker_init_ = true;
     }
@@ -82,6 +98,35 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     
     // cv::imshow("image", img);
     // cv::waitKey(3);
+}
+
+void UAVTracker::screenPointCallbackAuto(
+    const sensor_msgs::Image::ConstPtr & image_msg,
+    const geometry_msgs::PolygonStamped::ConstPtr &screen_msg) {
+    int x = screen_msg->polygon.points[0].x;
+    int y = screen_msg->polygon.points[0].y;
+    int width = screen_msg->polygon.points[1].x - x;
+    int height = screen_msg->polygon.points[1].y - y;
+    this->screen_rect_ = cv::Rect_<int>(x, y, width, height);
+    this->object_init_ = false;
+    if (width > this->block_size_ && height > this->block_size_) {
+       this->object_init_ = true;
+       this->tracker_init_ = false;
+       try {
+          cv_bridge::CvImagePtr cv_ptr;
+          cv_ptr = cv_bridge::toCvCopy(
+             image_msg, sensor_msgs::image_encodings::BGR8);
+          this->init_image_ = cv_ptr->image.clone();
+       } catch (cv_bridge::Exception& e) {
+          ROS_ERROR("cv_bridge exception: %s", e.what());
+          this->object_init_ = false;
+          this->tracker_init_ = true;
+          return;
+       }
+       ROS_INFO("OBJECT INTIALIZED. NOW TRACKING..");
+    } else {
+       ROS_WARN("-- Selected Object Size is too small... Not init tracker");
+    }
 }
 
 void UAVTracker::screenPointCallback(

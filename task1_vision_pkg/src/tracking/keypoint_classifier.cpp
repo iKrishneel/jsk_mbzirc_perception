@@ -1,7 +1,7 @@
 
 #include <task1_vision_pkg/keypoint_classifier.h>
 
-KeyPointClassifier::KeyPointClassifier() {
+KeyPointClassifier::KeyPointClassifier() : num_threads_(4) {
 
 }
 
@@ -22,7 +22,7 @@ bool KeyPointClassifier::setForeGroundFeatures(
             }
         }
         cv::normalize(this->features_fore_.row(j), this->features_fore_.row(j),
-                      0, 1, cv::NORM_MINMAX, -1, cv::Mat());        
+                      0, 1, cv::NORM_MINMAX, -1, cv::Mat());
         this->fore_labels_.at<int>(j, 0) = label;
     }
     return true;
@@ -45,7 +45,7 @@ bool KeyPointClassifier::setBackGroundFeatures(
             }
         }
         cv::normalize(this->features_back_.row(j), this->features_back_.row(j),
-                      0, 1, cv::NORM_MINMAX, -1, cv::Mat());        
+                      0, 1, cv::NORM_MINMAX, -1, cv::Mat());
         this->back_labels_.at<int>(j, 0) = label;
     }
     return true;
@@ -113,7 +113,7 @@ void KeyPointClassifier::filterProbableOutliers(
     }
     int indices[static_cast<int>(keypoints.size())];
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(8) shared(indices)
+#pragma omp parallel for num_threads(this->num_threads_) shared(indices)
 #endif
     for (int i = 0; i < descriptor.rows; i++) {
         cv::Mat query = cv::Mat(1, descriptor.row(i).cols, CV_32F);
@@ -124,7 +124,7 @@ void KeyPointClassifier::filterProbableOutliers(
                 query.at<float>(0, j) = 0.0f;
             }
         }
-        cv::normalize(query, query, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());        
+        cv::normalize(query, query, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
         float response = this->predict(query);
         indices[i] = static_cast<int>(response);
     }

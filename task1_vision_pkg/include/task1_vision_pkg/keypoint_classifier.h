@@ -10,19 +10,20 @@
 
 class KeyPointClassifier {
 
-private:
+ private:
     cv::Mat features_fore_;
     cv::Mat fore_labels_;
     cv::Mat features_back_;
     cv::Mat back_labels_;
-
+    int num_threads_;
+   
     bool buildTrainingFeatures(cv::Mat &, cv::Mat &);
     float predict(const cv::Mat &);
     
-protected:
+ protected:
     cv::Ptr<cv::ml::SVM> svm_;
     
-public:
+ public:
     KeyPointClassifier();
     bool setForeGroundFeatures(const cv::Mat &, const int = 1);
     bool setBackGroundFeatures(const cv::Mat &, const int = -1);

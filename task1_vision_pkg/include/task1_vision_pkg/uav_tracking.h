@@ -28,11 +28,21 @@
 class UAVTracker: public CMT {
 
  private:
+
+    typedef message_filters::sync_policies::ApproximateTime<
+    sensor_msgs::Image, geometry_msgs::PolygonStamped> SyncPolicy;
+    message_filters::Subscriber<sensor_msgs::Image> init_img_;
+    message_filters::Subscriber<geometry_msgs::PolygonStamped> init_rect_;
+    boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
+   
     cv::Rect_<int> screen_rect_;
+    cv::Mat init_image_;  //! image used for init
+   
     int block_size_;
     bool tracker_init_;
     bool object_init_;
 
+    bool is_type_automatic_;
     int down_size_;
    
  protected:
@@ -49,10 +59,11 @@ class UAVTracker: public CMT {
    
  public:
     UAVTracker();
-    virtual void callback(
-       const sensor_msgs::Image::ConstPtr &);
-    virtual void screenPointCallback(
-       const geometry_msgs::PolygonStamped &);
+    virtual void callback(const sensor_msgs::Image::ConstPtr &);
+    void screenPointCallbackAuto(
+       const sensor_msgs::Image::ConstPtr &,
+       const geometry_msgs::PolygonStamped::ConstPtr &);
+    void screenPointCallback(const geometry_msgs::PolygonStamped &);
    
 };
 

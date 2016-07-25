@@ -6,11 +6,11 @@
 UAVLandingRegion::UAVLandingRegion() :
     down_size_(2), ground_plane_(0.0), track_width_(3.0f),
     landing_marker_width_(1.1f), min_wsize_(8), nms_thresh_(0.01f),
-    icounter_(0), num_threads_(16) {
+    icounter_(0), num_threads_(16), is_publish_(true) {
     this->nms_client_ = this->pnh_.serviceClient<
        jsk_tasks::NonMaximumSuppression>("non_maximum_suppression");
     
-    this->svm_ = cv::ml::SVM::create();
+    // this->svm_ = cv::ml::SVM::create();
     
     //! svm load or save path
     std::string svm_path;
@@ -21,7 +21,7 @@ UAVLandingRegion::UAVLandingRegion() :
     }
      
     //! train svm
-    bool is_train = true;
+    bool is_train = !true;
     if (is_train) {
        std::string object_data_path;
        std::string background_dataset_path;
@@ -37,15 +37,17 @@ UAVLandingRegion::UAVLandingRegion() :
        ROS_INFO("\033[34m-- SVM DETECTOR SUCCESSFULLY TRAINED \033[0m");
     }
     // TODO(BUG):  the loaded model doesnot work....
+    std::cout << "SVM PATH: " << svm_path  << "\n";
     // this->svm_->load(static_cast<std::string>(svm_path));
-    // this->svm_ = cv::Algorithm::load<cv::ml::SVM>(svm_path);
+    this->svm_ = cv::Algorithm::load<cv::ml::SVM>(svm_path);
     
     ROS_INFO("\033[34m-- SVM DETECTOR SUCCESSFULLY LOADED \033[0m");
-
-
+    
+    
     /**
      * test detector
      */
+    /*
     std::string video_path;
     // video_path = "/home/krishneel/Desktop/mbzirc/track-data/DJI_0007.MOV";
     video_path = "/home/krishneel/kdenlive/dji.mpg";
@@ -69,8 +71,8 @@ UAVLandingRegion::UAVLandingRegion() :
           break;
        }
     }
-    
-    // this->onInit();
+    */
+    this->onInit();
 }
 
 void UAVLandingRegion::onInit() {
@@ -84,9 +86,14 @@ void UAVLandingRegion::onInit() {
        "/uav_landing_region/output/cloud", sizeof(char));
     this->pub_pose_ = pnh_.advertise<geometry_msgs::PoseStamped>(
        "/uav_landing_region/output/pose", sizeof(char));
+
+    //! publish the detected region of the object
+    this->pub_rect_ = pnh_.advertise<geometry_msgs::PolygonStamped>(
+       "/uav_landing_region/output/roi_rect", sizeof(char));
 }
 
 void UAVLandingRegion::subscribe() {
+   /*
     this->sub_image_.subscribe(this->pnh_, "input_image", 1);
     this->sub_mask_.subscribe(this->pnh_, "input_mask", 1);
     this->sub_imu_.subscribe(this->pnh_, "input_imu", 1);
@@ -100,11 +107,91 @@ void UAVLandingRegion::subscribe() {
     this->sync_->registerCallback(
       boost::bind(
          &UAVLandingRegion::imageCB, this, _1, _2, _3, _4, _5));
+   */
+   
+    this->sub_timage_.subscribe(this->pnh_, "input_image", 1);
+    this->sub_tmask_.subscribe(this->pnh_, "input_mask", 1);
+    this->tsync_ = boost::make_shared<message_filters::Synchronizer<
+       TrialPolicy> >(100);
+    this->tsync_->connectInput(this->sub_timage_, this->sub_tmask_);
+    this->tsync_->registerCallback(
+       boost::bind(&UAVLandingRegion::trialImageCB, this, _1, _2));
+    
+    dynamic_reconfigure::Server<
+       task1_vision_pkg::Task1VisionPkgConfig>::CallbackType f =
+       boost::bind(&UAVLandingRegion::configCB, this, _1, _2);
+    server_.setCallback(f);
 }
 
 void UAVLandingRegion::unsubscribe() {
     this->sub_image_.unsubscribe();
     this->sub_mask_.unsubscribe();
+}
+
+/**
+ * callback for trial in Gasshouku where map is not avaliable
+ */
+void UAVLandingRegion::trialImageCB(
+    const sensor_msgs::Image::ConstPtr &image_msg,
+    const sensor_msgs::Image::ConstPtr &mask_msg) {
+    if (!this->is_publish_) {
+       return;
+    }
+    cv::Mat image = this->convertImageToMat(image_msg, "bgr8");
+    if (image.empty()) {
+       ROS_ERROR("EMPTY IMAGE. SKIP LANDING SITE DETECTION");
+       return;
+    }
+    cv::Size im_downsize = cv::Size(image.cols/this->down_size_,
+                                    image.rows/this->down_size_);
+    cv::resize(image, image, im_downsize);
+
+    //! TODO(BOX BASED ON HEIGHT): PROJECTION
+    // if (wsize.width < this->min_wsize_) {
+    //    ROS_WARN("HIGH ALTITUDE. SKIPPING DETECTION");
+    //    return;
+    // }
+
+    cv::Size wsize = cv::Size(20, 20);  //! CHANGE TO AUTO
+    ROS_INFO("\033[34m DETECTION \033[0m");
+    cv::Point2f marker_point = this->traceandDetectLandingMarker(
+       image, image, wsize);
+    if (marker_point.x == -1) {
+       ROS_WARN("NO OBJECT DETECTED");
+       return;
+    }
+
+    int x = marker_point.x - (wsize.width / 2);
+    int y = marker_point.y - (wsize.height / 2);
+    int width = wsize.width;
+    int height = wsize.height;
+    
+    x = (x < 0) ? 0 : x;
+    y = (y < 0) ? 0 : y;
+    if (width + x > image.cols) {
+       width += (image.cols - (width + x));
+    }
+    if (height + y > image.rows) {
+       height += (image.rows - (height + y));
+    }
+    geometry_msgs::Point32 corners[2];
+    corners[0].x = x;
+    corners[0].y = y;
+    corners[1].x = x + width;
+    corners[1].y = y + height;
+    
+    geometry_msgs::PolygonStamped roi_rect;
+    roi_rect.polygon.points.push_back(corners[0]);
+    roi_rect.polygon.points.push_back(corners[1]);
+    roi_rect.header = image_msg->header;
+    this->pub_rect_.publish(roi_rect);
+    this->pub_image_.publish(image_msg);
+
+    // this->is_publish_ = false;
+    cv::imshow("image", image);
+    cv::waitKey(3);
+
+    ROS_WARN("DONE HERE");
 }
 
 void UAVLandingRegion::imageCB(
@@ -113,8 +200,6 @@ void UAVLandingRegion::imageCB(
     const sensor_msgs::Imu::ConstPtr &imu_msg,
     const nav_msgs::Odometry::ConstPtr &odom_msg,
     const jsk_msgs::ProjectionMatrix::ConstPtr &proj_mat_msg) {
-
-
     ROS_INFO("\033[033m In callback \033[0m");
    
     cv::Mat image = this->convertImageToMat(image_msg, "bgr8");
@@ -146,14 +231,12 @@ void UAVLandingRegion::imageCB(
     if (marker_point.x == -1) {
        return;
     }
-
-
+    
     ROS_INFO("\033[033m -- projecting to 3D coords \033[0m");
     
     Point3DStamped ros_point = this->pointToWorldCoords(
        *proj_mat_msg, marker_point.x * this->down_size_,
        marker_point.y * this->down_size_);
-
 
     ROS_INFO("\033[033m -- DONE \033[0m");
     
@@ -222,7 +305,7 @@ void UAVLandingRegion::imageCB(
     ros_pose.pose.orientation.w = imu_msg->orientation.w;
     ros_pose.header = image_msg->header;
     this->pub_pose_.publish(ros_pose);
-    
+
     cv::waitKey(5);
 }
 
@@ -240,8 +323,8 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
 
     // cv::GaussianBlur(img, img, cv::Size(3, 3), 1, 0);
     
-    cv::Mat im_edge;
-    cv::Canny(image, im_edge, 50, 100);
+    cv::Mat im_edge = image.clone();
+    // cv::Canny(image, im_edge, 50, 100);
     cv::Mat weight = img.clone();
 
     jsk_tasks::NonMaximumSuppression nms_srv;
@@ -315,11 +398,12 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     // TODO(REMOVE OTHER FALSE POSITIVES): HERE?
 
     img = weight.clone();
-    
+
     std::string wname = "result";
     cv::namedWindow(wname, cv::WINDOW_NORMAL);
     cv::imshow(wname, weight);
-
+    cv::waitKey(3);
+    
     return center;
 }
 
@@ -450,6 +534,12 @@ void UAVLandingRegion::predictVehicleRegion(
     // points.z = trans.at<float>(2, 0);
 }
 
+void UAVLandingRegion::configCB(
+    task1_vision_pkg::Task1VisionPkgConfig &config, uint32_t level) {
+    boost::mutex::scoped_lock lock(this->lock_);
+    this->detector_altitude_ = static_cast<float>(config.detection_altitude);
+    this->is_publish_ = config.is_publish;
+}
 
 int main(int argc, char *argv[]) {
     ros::init(argc, argv, "task1_vision_pkg");

@@ -10,12 +10,12 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <dynamic_reconfigure/server.h>
 
-// #include <image_geometry/pinhole_camera_model.h>
 #include <cv_bridge/cv_bridge.h>
-
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Point32.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <sensor_msgs/Image.h>
@@ -28,13 +28,13 @@
 
 #include <task1_vision_pkg/uav_detect_landing_region_trainer.h>
 #include <task1_vision_pkg/NonMaximumSuppression.h>
+#include <task1_vision_pkg/Task1VisionPkgConfig.h>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 namespace jsk_msgs = jsk_mbzirc_msgs;
-// namespace jsk_tasks = jsk_mbzirc_tasks;
 namespace jsk_tasks = task1_vision_pkg;
 
 class UAVLandingRegion: public UAVLandingRegionTrainer {
@@ -43,8 +43,6 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     typedef geometry_msgs::PointStamped Point3DStamped;
 
     struct MotionInfo {
-       // Point3D veh_position;
-       // Point3D uav_position;
        cv::Point2f veh_position;
        cv::Point2f uav_position;
 
@@ -61,7 +59,19 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     message_filters::Subscriber<jsk_msgs::ProjectionMatrix> sub_proj_;
     message_filters::Subscriber<nav_msgs::Odometry> sub_odom_;
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
+    dynamic_reconfigure::Server<jsk_tasks::Task1VisionPkgConfig>  server_;
 
+
+    //! message filters for trial
+    typedef message_filters::sync_policies::ApproximateTime<
+       sensor_msgs::Image, sensor_msgs::Image> TrialPolicy;
+    message_filters::Subscriber<sensor_msgs::Image> sub_timage_;
+    message_filters::Subscriber<sensor_msgs::Image> sub_tmask_;
+    boost::shared_ptr<message_filters::Synchronizer<TrialPolicy> >tsync_;
+
+    boost::mutex mutex_;
+    boost::mutex lock_;
+   
     int num_threads_;
     cv::Mat templ_img_;
     int down_size_;
@@ -74,6 +84,11 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
 
     MotionInfo motion_info_[2];
     int icounter_;
+
+    //! control param based on height
+    float detector_altitude_;
+    bool is_publish_;
+
    
  protected:
     ros::NodeHandle pnh_;
@@ -81,6 +96,7 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     ros::Publisher pub_point_;
     ros::Publisher pub_cloud_;
     ros::Publisher pub_pose_;
+    ros::Publisher pub_rect_;
     
     ros::ServiceClient nms_client_;
    
@@ -95,6 +111,8 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
                          const sensor_msgs::Imu::ConstPtr &,
                          const nav_msgs::Odometry::ConstPtr &,
                          const jsk_msgs::ProjectionMatrix::ConstPtr &);
+    void trialImageCB(const sensor_msgs::Image::ConstPtr &,
+                      const sensor_msgs::Image::ConstPtr &);
    
     cv::Point2f traceandDetectLandingMarker(cv::Mat, const cv::Mat,
                                             const cv::Size);
@@ -106,6 +124,9 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     Point3DStamped pointToWorldCoords(const jsk_msgs::ProjectionMatrix,
                                       const float, const float);
     void predictVehicleRegion(cv::Point2f &, const MotionInfo*);
+    void configCB(task1_vision_pkg::Task1VisionPkgConfig &, uint32_t);
+
+   
 };
 
 

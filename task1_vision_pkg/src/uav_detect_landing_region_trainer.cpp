@@ -125,17 +125,17 @@ void UAVLandingRegionTrainer::trainSVM(
     }
     this->svm_ = cv::ml::SVM::create();
     this->svm_->setType(cv::ml::SVM::C_SVC);
-    this->svm_->setKernel(cv::ml::SVM::INTER);
+    this->svm_->setKernel(cv::ml::SVM::LINEAR);
     this->svm_->setDegree(0.0);
     this->svm_->setGamma(0.90);
     this->svm_->setCoef0(0.70);
-    this->svm_->setC(1);
+    this->svm_->setC(0.5);
     this->svm_->setNu(0.70);
     this->svm_->setP(1.0);
     // this->svm_->setClassWeights(cv::Mat());
     cv::TermCriteria term_crit  = cv::TermCriteria(
         cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,
-        static_cast<int>(1e5), FLT_EPSILON);
+        static_cast<int>(1e7), FLT_EPSILON);
     this->svm_->setTermCriteria(term_crit);
     cv::Ptr<cv::ml::ParamGrid> param_grid = new cv::ml::ParamGrid();
     param_grid->minVal = 0;
@@ -146,5 +146,7 @@ void UAVLandingRegionTrainer::trainSVM(
     if (!save_path.empty()) {
        this->svm_->save(static_cast<std::string>(save_path));
        ROS_INFO("\033[34mSVM SUCCESSFULLY TRAINED AND SAVED TO\033[0m");
+    } else {
+       ROS_WARN("TRAINED SVM MODEL NOT WRITTEN");
     }
 }

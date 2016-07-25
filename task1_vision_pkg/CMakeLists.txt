@@ -5,13 +5,17 @@ project(task1_vision_pkg)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-      roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs)
+      roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs dynamic_reconfigure )
 find_package(OpenCV REQUIRED)
 
 add_service_files(
-    FILES
+  FILES
   NonMaximumSuppression.srv
   Skeletonization.srv)
+
+generate_dynamic_reconfigure_options(
+    cfg/Task1VisionPkg.cfg
+)
 
 generate_messages(
   DEPENDENCIES
@@ -64,18 +68,18 @@ else()
   target_link_libraries(uav_img2pointcloud ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 endif(ENABLE_CUDA)
 
-
-#build for landing site detection
+if (OpenCV_VERSION VERSION_GREATER "3.0")
+  #build for landing site detection
   add_executable(uav_detect_landing_region_node
     src/uav_detect_landing_region_node.cpp
     src/histogram_of_oriented_gradients.cpp
     src/uav_detect_landing_region_trainer.cpp
     )
+  add_dependencies(uav_detect_landing_region_node ${PROJECT_NAME}_gencfg ${PROJECT_NAME}_gencpp)
   target_link_libraries(uav_detect_landing_region_node ${catkin_LIBRARIES} ${OpenCV_LIBS} )
 
 
 #build for tracking
-if (OpenCV_VERSION VERSION_GREATER "3.0")
   add_executable(uav_tracking_node
     src/tracking/uav_tracking_node.cpp
     src/tracking/CMT.cpp

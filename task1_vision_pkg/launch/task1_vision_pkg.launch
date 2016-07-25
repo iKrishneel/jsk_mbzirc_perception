@@ -1,0 +1,38 @@
+<launch>
+    <arg name="image" default="/camera/rgb/image_rect_color" />
+    <arg name="roi_rect" default="/uav_landing_region/output/roi_rect" />
+
+    <node pkg="task1_vision_pkg" type="uav_detect_landing_region_node"
+	name="uav_detect_landing_region" output="screen" clear_params="true" >
+      <remap from="input_image" to="$(arg image)" />
+      <remap from="input_mask" to="$(arg image)" />
+
+      <param name="svm_path" value="$(find task1_vision_pkg)/data/svm.xml" />
+      <remap from="svm_path" to="/uav_detect_landing_region/svm_path" />
+
+      <param name="object_dataset_path" value="$(find task1_vision_pkg)/data/positive.txt" />
+      <remap from="object_dataset_path" to="/uav_detect_landing_region/object_dataset_path" />
+      
+      <param name="background_dataset_path" value="$(find task1_vision_pkg)/data/negative.txt" />
+      <remap from="background_dataset_path" to="/uav_detect_landing_region/background_dataset_path" />
+
+      <param name="data_directory" value="$(find task1_vision_pkg)/" />
+      <remap from="data_directory" to="/uav_detect_landing_region/data_directory" />
+    </node>
+  
+  <node pkg="task1_vision_pkg" type="non_maximum_suppression.py"
+  	name="non_maximum_suppression" output="screen" >
+    <remap from="non_maximum_suppression" to="non_maximum_suppression" />
+  </node>
+  
+
+  <!-- <node pkg="task1_vision_pkg" type="uav_tracking_node"  name="uav_tracking" output="screen" > -->
+  <!--   <remap from="input" to="$(arg image)" /> -->
+  <!--   <remap from="input_screen" to="$(arg roi_rect)"/> -->
+  <!--   <remap from="init_image"  to= "/uav_landing_region/output/image"/> -->
+  <!-- </node> -->
+  <!-- <node pkg="image_view" type="image_view" -->
+  <!--       name="image_view" output="screen"> -->
+  <!--   <remap from="image" to="/uav_tracking/output/image"/> -->
+  <!-- </node> -->
+</launch>

@@ -691,9 +691,9 @@ void CMT::processFrame(cv::Mat im_gray)
     /**
      * CLASSIFIER CHECK
      */
-    std::cout << "\033[32m INFO BEFORE: \033[0m" << features.size()  << "\n";
+    // std::cout << "\033[32m INFO BEFORE: \033[0m" << features.size()  << "\n";
     this->classifier_->filterProbableOutliers(im_gray, features, keypoints);
-    std::cout << "\033[33m INFO AFTER: \033[0m" << features.size()  << "\n";
+    // std::cout << "\033[33m INFO AFTER: \033[0m" << features.size()  << "\n";
     
     //Create list of active keypoints
     activeKeypoints = std::vector<std::pair<cv::KeyPoint, int> >();
