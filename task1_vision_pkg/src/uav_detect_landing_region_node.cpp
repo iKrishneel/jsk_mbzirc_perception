@@ -60,8 +60,6 @@ UAVLandingRegion::UAVLandingRegion() :
     LOG(INFO) << "Blob size: "<< net_->input_blobs().size();
     
     //! prediction
-
-
     /**
      * READ TEXT
      */
@@ -72,8 +70,6 @@ UAVLandingRegion::UAVLandingRegion() :
     std::copy(std::istream_iterator<float>(in_file),
               std::istream_iterator<float>(),
               std::back_inserter(test_features));
-
-
 
     std::cout << test_features.size()  << "\n";
     
@@ -88,23 +84,13 @@ UAVLandingRegion::UAVLandingRegion() :
     
     float* input_data = data_layer->mutable_cpu_data();
     for (int i = 0; i < data_layer->height(); ++i) {
-       // cv::Mat channel(height, width, CV_32FC1, input_data);
        input_data[i] = test_features.at(i);
-       // std::cout << input_data[0]  << "\n";
-       // std::cout << channel.size()  << "\n";
-       //   input_channels->push_back(channel);
-       // input_data += width * height;
     }
-    // for (int i = 0; i < input_channels->size(); i++) {
-    //    std::cout << input_channels->at(i)  << "\n";
-    // }
+
+    std::clock_t start;
+    start = std::clock();
     
-    LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
-    
-    // boost::shared_ptr<caffe::Blob<float> > probLayer = net_->blob_by_name("prob");
-    // const float* probs_out = probLayer->cpu_data();
-    // net_->blob_by_name("data") = data;
-    
+    LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");    
     net_->Forward();
 
     caffe::Blob<float>* output_layer = net_->output_blobs()[0];
@@ -112,11 +98,14 @@ UAVLandingRegion::UAVLandingRegion() :
     const float* end = begin + output_layer->channels();
     std::vector<float> predict = std::vector<float>(begin, end);
 
+    double duration = (std::clock() - start) /
+       static_cast<double>(CLOCKS_PER_SEC);
+    std::cout<<"printf: "<< duration <<'\n';
+    
+    
     for (int i = 0; i < predict.size(); i++) {
        std::cout << "PREDICT: " << predict[i]  << "\n";
     }
-
-    
 }
 
 void UAVLandingRegion::onInit() {
