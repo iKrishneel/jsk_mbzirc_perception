@@ -19,21 +19,21 @@ class UAVProjectionToWorld:
         rospy.loginfo("running node to project points to world")
         self.proj_matrix = None
         self.ground_z = rospy.get_param('~z_distance', 1.0)
-        self.pub_point3d = rospy.Publisher('/uav_tracking/output/heliport_world_coords', PointStamped, queue_size = 10)
-    
+        #self.pub_point3d = rospy.Publisher('/uav_tracking/output/heliport_world_coords', PointStamped, queue_size = 10)
+        self.pub_point3d = rospy.Publisher('/uav_landing_region/output/point', PointStamped, queue_size = 10)
+        self.subscribe()
+
     def subscribe(self):
         sub_proj = message_filters.Subscriber(sub_pmatrix_, ProjectionMatrix)
         sub_rect = message_filters.Subscriber(sub_point2d_, PointStamped)
 
-        ats = message_filters.ApproximateTimeSynchronizer((sub_proj, sub_rect), 10, 100)
-        ats.registerCallback(self.callbac)
+        ats = message_filters.ApproximateTimeSynchronizer((sub_proj, sub_rect), 10, 10)
+        ats.registerCallback(self.callback)
 
-    def callback(self, proj_msg, rect_msg):
+    def callback(self, proj_msg, point2d_msg):
         self.proj_matrix = np.reshape(proj_msg.data, (3, 4))
         
-        center_x = rect_msg.x + (rect_msg.width / 2)
-        center_y = rect_msg.x + (rect_msg.width / 2)
-        point3d = self.projection_to_world_coords(center_x, center_y, self.ground_z)
+        point3d = self.projection_to_world_coords(point2d_msg.point.x, point2d_msg.point.y, self.ground_z)
         
         ros_point = PointStamped()
         ros_point.point.x = point3d[0]
