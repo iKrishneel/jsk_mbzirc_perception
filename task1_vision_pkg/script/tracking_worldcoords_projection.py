@@ -8,11 +8,11 @@ import numpy as np
 import sys
 import message_filters
 
-from jsk_mbzirc_msgs.msg import ProjectionMatrix, Rect
+from jsk_mbzirc_msgs.msg import ProjectionMatrix
 from geometry_msgs.msg import PointStamped
 
 sub_pmatrix_ = '/projection_matrix'
-sub_rect_ = '/uav_tracking/output/rect'
+sub_point2d_ = '/uav_tracking/output/point2d'
 
 class UAVProjectionToWorld:
     def __init__(self):
@@ -23,7 +23,7 @@ class UAVProjectionToWorld:
     
     def subscribe(self):
         sub_proj = message_filters.Subscriber(sub_pmatrix_, ProjectionMatrix)
-        sub_rect = message_filters.Subscriber(sub_rect_, Rect)
+        sub_rect = message_filters.Subscriber(sub_point2d_, PointStamped)
 
         ats = message_filters.ApproximateTimeSynchronizer((sub_proj, sub_rect), 10, 100)
         ats.registerCallback(self.callbac)

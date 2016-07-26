@@ -3,7 +3,7 @@
 
 UAVTracker::UAVTracker():
     block_size_(10), tracker_init_(false), object_init_(false),
-    down_size_(2), is_type_automatic_(true) {
+    down_size_(2), is_type_automatic_(!true) {
     this->onInit();
 }
 
@@ -92,6 +92,7 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     geometry_msgs::PointStamped ros_point;
     ros_point.point.x = (jsk_rect.x + (jsk_rect.width / 2));
     ros_point.point.y = (jsk_rect.y + (jsk_rect.height / 2));
+    ros_point.header = image_msg->header;
     this->pub_rect_.publish(ros_point);
     // this->pub_rect_.publish(jsk_rect);
 
