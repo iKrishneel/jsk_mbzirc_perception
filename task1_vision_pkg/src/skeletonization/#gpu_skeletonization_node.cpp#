@@ -37,7 +37,7 @@ void GPUSkeletonization::callback(
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
     }
-    cv::Mat image = cv_ptr->image.clone();    
+    cv::Mat image = cv_ptr->image.clone();
     
     //! CHANGE TO CUDA VERSION
     // int morph_size = 4;
