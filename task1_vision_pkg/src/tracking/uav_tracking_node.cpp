@@ -11,12 +11,13 @@ void UAVTracker::onInit() {
     this->subscribe();
     this->pub_image_ = pnh_.advertise<sensor_msgs::Image>(
        "/uav_tracking/output/image", sizeof(char));
-    this->pub_rect_ = pnh_.advertise<jsk_mbzirc_msgs::Rect>(
-       "/uav_tracking/output/rect", sizeof(char));
+    // this->pub_rect_ = pnh_.advertise<jsk_mbzirc_msgs::Rect>(
+    //    "/uav_tracking/output/rect", sizeof(char));
+    this->pub_rect_ = pnh_.advertise<geometry_msgs::PointStamped>(
+       "/uav_tracking/output/point2d", sizeof(char));
 }
 
 void UAVTracker::subscribe() {
-
     if (!is_type_automatic_) {
        this->sub_screen_pt_ = this->pnh_.subscribe(
           "input_screen", 1, &UAVTracker::screenPointCallback, this);
@@ -87,8 +88,14 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     jsk_rect.y = this->topLeft.y;
     jsk_rect.width = (this->bottomRight.x - jsk_rect.x);
     jsk_rect.height = (this->bottomRight.y - jsk_rect.y);
+
+    geometry_msgs::PointStamped ros_point;
+    ros_point.point.x = (jsk_rect.x + (jsk_rect.width / 2));
+    ros_point.point.y = (jsk_rect.y + (jsk_rect.height / 2));
+    this->pub_rect_.publish(ros_point);
+    // this->pub_rect_.publish(jsk_rect);
+
     
-    this->pub_rect_.publish(jsk_rect);
     
     cv_bridge::CvImagePtr pub_msg(new cv_bridge::CvImage);
     pub_msg->header = image_msg->header;
