@@ -90,8 +90,8 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     jsk_rect.height = (this->bottomRight.y - jsk_rect.y);
 
     geometry_msgs::PointStamped ros_point;
-    ros_point.point.x = (jsk_rect.x + (jsk_rect.width / 2));
-    ros_point.point.y = (jsk_rect.y + (jsk_rect.height / 2));
+    ros_point.point.x = (jsk_rect.x + (jsk_rect.width / 2)) * this->down_size_;
+    ros_point.point.y = (jsk_rect.y + (jsk_rect.height / 2)) * this->down_size_;
     ros_point.header = image_msg->header;
     this->pub_rect_.publish(ros_point);
     // this->pub_rect_.publish(jsk_rect);
