@@ -8,19 +8,21 @@
 #include <ros/console.h>
 #include <cv_bridge/cv_bridge.h>
 
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
+
 #include <geometry_msgs/PolygonStamped.h>
 #include <sensor_msgs/Image.h>
-
-// #include <image_geometry/pinhole_camera_model.h>
 #include <task1_vision_pkg/skeletonization/skeletonization_kernel.h>
-// #include <task1_vision_pkg/Skeletonization.h>
-
-// namespace jsk_tasks = task1_vision_pkg;
 
 class GPUSkeletonization {
 
+    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointCloud<PointT> PointCloud;
+   
  private:
-      
+    cv::Mat downsamplePoints(unsigned char *, const cv::Size);
+   
  protected:
     void onInit();
     void subscribe();
@@ -33,8 +35,6 @@ class GPUSkeletonization {
  public:
     GPUSkeletonization();
     void callback(const sensor_msgs::Image::ConstPtr &);
-    // bool skeletonizationGPUSrv(jsk_tasks::Skeletonization::Request &,
-    //                            jsk_tasks::Skeletonization::Response &);
 };
 
 

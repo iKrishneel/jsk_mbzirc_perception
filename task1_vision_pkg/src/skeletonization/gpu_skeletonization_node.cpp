@@ -4,11 +4,6 @@
 #include <task1_vision_pkg/skeletonization/gpu_skeletonization.h>
 
 GPUSkeletonization::GPUSkeletonization() {
-    // boost::shared_ptr<GPUSkeletonization> object(
-    //    boost::make_shared<GPUSkeletonization>());
-    // ros::ServiceServer service = pnh_.advertiseService(
-    //    "gpu_skeletonization", &GPUSkeletonization::skeletonizationGPUSrv,
-    //    object);
     this->onInit();
 }
 
@@ -37,7 +32,7 @@ void GPUSkeletonization::callback(
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
     }
-    cv::Mat image = cv_ptr->image.clone();    
+    cv::Mat image = cv_ptr->image.clone();
     
     //! CHANGE TO CUDA VERSION
     // int morph_size = 4;
@@ -53,34 +48,66 @@ void GPUSkeletonization::callback(
     // cv::GaussianBlur(image, image, cv::Size(21, 21), 1, 0);
     
     // cv::imshow("dilate", dst);
-    cv::imshow("image", image);
-    cv::waitKey(3);
+
+    const int im_size = image.rows * image.cols;
+    unsigned char skel_points[im_size];
+    skeletonizationGPU(image, skel_points);
+
+    image = downsamplePoints(skel_points, image.size());
     
-    skeletonizationGPU(image);
+    // cv::imshow("image", image);
+    // cv::waitKey(3);
+    
     cv_ptr->image = image.clone();
     this->pub_image_.publish(cv_ptr->toImageMsg());
+
+    // delete skel_points;
 }
 
-/*
-bool GPUSkeletonization::skeletonizationGPUSrv(
-    jsk_tasks::Skeletonization::Request &request,
-    jsk_tasks::Skeletonization::Response &response) {
-    cv_bridge::CvImagePtr cv_ptr;
-    try {
-       cv_ptr = cv_bridge::toCvCopy(
-          request.image, sensor_msgs::image_encodings::MONO8);
-    } catch (cv_bridge::Exception& e) {
-      ROS_ERROR("cv_bridge exception: %s", e.what());
-      return false;
+cv::Mat GPUSkeletonization::downsamplePoints(
+    unsigned char *skel_points, const cv::Size img_size) {
+    int icounter = 0;
+    PointCloud::Ptr cloud(new PointCloud);
+
+    // TODO: CONVERT TO 3D POINTS HERE
+    
+    for (int i = 0; i < img_size.height; i++) {
+       for (int j = 0; j < img_size.width; j++) {
+          int index = j + (i * img_size.width);
+          unsigned char pixel = skel_points[index] * 255;
+          if (static_cast<int>(pixel) == 255) {
+             PointT pt;
+             pt.x = j;
+             pt.y = i;
+             pt.z = 0.0f;
+             pt.r = pixel;
+             pt.b = pixel;
+             pt.g = pixel;
+             cloud->push_back(pt);
+          }
+       }
     }
-    cv::Mat image = cv_ptr->image.clone();
-    skeletonizationGPU(image);
-    cv_ptr->image = image.clone();
-    response.image = *(cv_ptr->toImageMsg());  //! CHANGE TO ARRAY
-                                               //! INSTEAD
-    return true;
+    
+    const float leaf_size = 10.0f;
+    pcl::VoxelGrid<PointT> voxel_grid;
+    voxel_grid.setInputCloud(cloud);
+    voxel_grid.setLeafSize(leaf_size, leaf_size, 0.0);
+    voxel_grid.filter(*cloud);
+
+    cv::Mat image = cv::Mat::zeros(img_size, CV_8UC1);
+    for (int i = 0; i < cloud->size(); i++) {
+       PointT pt = cloud->points[i];
+       image.at<uchar>(pt.y, pt.x) = 255;
+    }
+
+    // std::cout << "\n\n NUM POINTS: " << cloud->size()   << "\n";
+    
+    PointCloud().swap(*cloud);
+    // cv::namedWindow("down", cv::WINDOW_NORMAL);
+    // cv::imshow("down", image);
+    return image.clone();
 }
-*/
+
 
 int main(int argc, char *argv[]) {
 

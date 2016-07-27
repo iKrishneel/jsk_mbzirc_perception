@@ -5,7 +5,7 @@ project(task1_vision_pkg)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-      roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs dynamic_reconfigure )
+      roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs dynamic_reconfigure pcl_ros)
 find_package(OpenCV REQUIRED)
 
 add_service_files(
@@ -42,6 +42,7 @@ set(PCL_INCLUDE_DIRS "/usr/include/pcl-1.7/")
 set(EIGEN_INCLUDE_DIRS "/usr/include/eigen3/")
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS})
+
 if(ENABLE_CUDA)
     find_package(CUDA REQUIRED)
     include(FindCUDA)

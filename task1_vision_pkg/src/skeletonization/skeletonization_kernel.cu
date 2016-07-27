@@ -89,7 +89,7 @@ void cuAbsDiff(int *value, unsigned char *d_image, unsigned char *d_prev,
     }
 }
 
-void skeletonizationGPU(cv::Mat &image) {
+void skeletonizationGPU(cv::Mat &image, unsigned char *skel_points) {
     if (image.type() != CV_8UC1) {
        cv::cvtColor(image, image, CV_BGR2GRAY);
     }
@@ -125,7 +125,7 @@ void skeletonizationGPU(cv::Mat &image) {
     cudaMalloc(reinterpret_cast<void**>(&d_count), sizeof(int));
     
     bool is_zero = true;
-    unsigned char temp_data[im_size];
+    // unsigned char temp_data[im_size];
     int icounter = 0;
     
     int value;
@@ -146,7 +146,8 @@ void skeletonizationGPU(cv::Mat &image) {
           is_zero = false;
        } else {
           is_zero = true;
-          cudaMemcpy(temp_data, d_image, dev_mal, cudaMemcpyDeviceToHost);
+          // cudaMemcpy(temp_data, d_image, dev_mal, cudaMemcpyDeviceToHost);
+          cudaMemcpy(skel_points, d_image, dev_mal, cudaMemcpyDeviceToHost);
        }
 
     } while (!is_zero);
@@ -160,13 +161,14 @@ void skeletonizationGPU(cv::Mat &image) {
     std::cout << "\033[33m ELAPSED TIME:  \033[0m" << elapsed_time/1000.0f
               << "\n";
     */
+    /*
     icounter = 0;
     for (int i = 0; i < image.rows; i++) {
        for (int j = 0; j < image.cols; j++) {
           image.at<uchar>(i, j) = temp_data[icounter++] * 255;
        }
     }
-
+    */
     cudaFree(d_image);
     cudaFree(d_prev);
     cudaFree(d_count);

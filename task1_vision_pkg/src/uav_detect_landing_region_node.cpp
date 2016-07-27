@@ -6,7 +6,7 @@
 UAVLandingRegion::UAVLandingRegion() :
     down_size_(2), ground_plane_(0.0), track_width_(3.0f),
     landing_marker_width_(1.1f), min_wsize_(8), nms_thresh_(0.01f),
-    icounter_(0), num_threads_(16), is_publish_(true), run_type_gazebo_(false) {
+    icounter_(0), num_threads_(16), is_publish_(true), run_type_gazebo_(true) {
     this->nms_client_ = this->pnh_.serviceClient<
        jsk_tasks::NonMaximumSuppression>("non_maximum_suppression");
     
@@ -66,7 +66,7 @@ void UAVLandingRegion::onInit() {
           "/uav_landing_region/output/pose", sizeof(char));
     } else {
        this->pub_rect_ = pnh_.advertise<geometry_msgs::PolygonStamped>(
-          "/uav_landing_region/output/roi_rect", sizeof(char));
+          "/uav_landing_region/output/point", sizeof(char));
     }
 }
 
@@ -206,6 +206,7 @@ void UAVLandingRegion::imageCB(
     cv::Point2f marker_point = this->traceandDetectLandingMarker(
        image, im_mask, wsize);
     if (marker_point.x == -1) {
+       ROS_WARN("NO OBJECT DETECTED");
        return;
     }
     
@@ -297,11 +298,12 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     if (image.type() != CV_8UC1) {
        cv::cvtColor(image, image, CV_BGR2GRAY);
     }
-
-    // cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
     
     cv::Mat im_edge = image.clone();
-    // cv::Canny(image, im_edge, 50, 100);
+    if (this->run_type_gazebo_) {
+       cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
+       cv::Canny(image, im_edge, 50, 100);
+    }
     cv::Mat weight = img.clone();
 
     jsk_tasks::NonMaximumSuppression nms_srv;
@@ -318,11 +320,10 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(this->num_threads_)
 #endif
-    for (int j = 0; j < im_edge.rows; j += 4) {
-       for (int i = 0; i < im_edge.cols; i += 4) {
+    for (int j = 0; j < im_edge.rows; j += 2) {
+       for (int i = 0; i < im_edge.cols; i += 2) {
           
-          // if (static_cast<int>(im_edge.at<uchar>(j, i)) != 0)
-          {
+          if (static_cast<int>(im_edge.at<uchar>(j, i)) != 0) {
              cv::Rect rect = cv::Rect(i, j, wsize.width, wsize.height);
              if (rect.x + rect.width < image.cols &&
                  rect.y + rect.height < image.rows) {

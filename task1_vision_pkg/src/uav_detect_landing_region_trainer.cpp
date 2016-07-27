@@ -92,7 +92,7 @@ cv::Mat UAVLandingRegionTrainer::extractFeauture(
     //! regionlets
     cv::Size wsize = cv::Size(image.size().width/2, image.size().height/2);
     cv::Mat region_desc = this->regionletFeatures(image, wsize);
-    // cv::hconcat(desc, region_desc, desc);
+    cv::hconcat(desc, region_desc, desc);
     return desc;
 }
 
@@ -122,11 +122,14 @@ void UAVLandingRegionTrainer::trainSVM(
     }
     this->svm_ = cv::ml::SVM::create();
     this->svm_->setType(cv::ml::SVM::C_SVC);
+    //! this->svm_->setKernel(cv::ml::SVM::LINEAR);  // use for actual
+    //! data
+    // this->svm_->setC(0.50);
     this->svm_->setKernel(cv::ml::SVM::LINEAR);
     this->svm_->setDegree(0.0);
     this->svm_->setGamma(0.90);
     this->svm_->setCoef0(0.70);
-    this->svm_->setC(0.5);
+    this->svm_->setC(1.0);
     this->svm_->setNu(0.70);
     this->svm_->setP(1.0);
     // this->svm_->setClassWeights(cv::Mat());

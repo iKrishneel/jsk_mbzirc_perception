@@ -12,7 +12,7 @@
     <remap from="input_mask" to="$(arg image)" />
     <remap from="input_proj_mat" to="$(arg projection)" />
 
-    <param name="svm_path" value="$(find task1_vision_pkg/data/svm.xml" />
+    <param name="svm_path" value="$(find task1_vision_pkg)/data/svm.xml" />
     <remap from="svm_path" to="/uav_detect_landing_region/svm_path" />
 
     <param name="object_dataset_path" value="$(find task1_vision_pkg)/data/positive.txt" />
@@ -28,10 +28,10 @@
 
    <!-- load skeletonization -->
 
-   <!-- <node pkg="task1_vision_pkg" type="gpu_skeletonization_node" -->
-   <!-- 	 name="gpu_skeletonization" output="screen" > -->
-   <!--   <remap from="input_image" to="/track_region_mapping/output/track_mask" /> -->
-   <!-- </node> -->
+   <node pkg="task1_vision_pkg" type="gpu_skeletonization_node"
+   	 name="gpu_skeletonization" output="screen" >
+     <remap from="input_image" to="/track_region_mapping/output/track_mask" />
+   </node>
 
   <node pkg="task1_vision_pkg" type="non_maximum_suppression.py"
   	name="non_maximum_suppression" output="screen" >
