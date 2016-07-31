@@ -41,7 +41,7 @@
     </group>
   
 
-    <group if="$(arg is_detection)" >
+    <group if="$(arg is_tracking)" >
       <node pkg="task1_vision_pkg" type="uav_tracking_node"  name="uav_tracking" output="screen" >
 	<remap from="input" to="$(arg image)" />
 	<remap from="input_screen" to="$(arg roi_rect)"/>

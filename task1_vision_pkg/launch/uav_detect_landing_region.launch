@@ -1,7 +1,8 @@
 <launch>
   <arg name="image" default="/downward_cam/camera/image" />
   <arg name="projection" default="/projection_matrix" />
-  
+      <arg name="detector_type" default="DETECTOR" />
+
   <node pkg="task1_vision_pkg" type="uav_detect_landing_region_node"
 	name="uav_detect_landing_region" output="screen" >
     <remap from="input_image" to="$(arg image)" />
@@ -9,6 +10,7 @@
     <remap from="input_odom" to="/ground_truth/state" />
 
     <!-- <remap from="input_mask" to="/track_region_mapping/output/track_mask" /> -->
+    <!-- <remap from="input_mask" to="/skeletonization/output/image" /> -->
     <remap from="input_mask" to="$(arg image)" />
     <remap from="input_proj_mat" to="$(arg projection)" />
 
@@ -24,6 +26,10 @@
      <param name="data_directory" value="$(find task1_vision_pkg)/" />
      <remap from="data_directory" to="/uav_detect_landing_region/data_directory" />
 
+     <!-- run type: detector or bootstrap -->
+     <param name="detector_type" value="$(arg detector_type)" />
+     <remap from="detector_type" to = "/uav_detect_landing_region/detector_type" />
+     
    </node>
 
    <!-- load skeletonization -->

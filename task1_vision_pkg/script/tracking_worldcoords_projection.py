@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import roslib
 roslib.load_manifest('task1_vision_pkg')
 
@@ -9,7 +10,7 @@ import sys
 import message_filters
 
 from jsk_mbzirc_msgs.msg import ProjectionMatrix
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, PoseStamped
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pcl2
 
@@ -23,7 +24,8 @@ class UAVProjectionToWorld:
         self.ground_z = rospy.get_param('~z_distance', 0.0)
         #self.pub_point3d = rospy.Publisher('/uav_tracking/output/heliport_world_coords', PointStamped, queue_size = 10)
         self.pub_point3d = rospy.Publisher('/uav_landing_region/output/point', PointStamped, queue_size = 10)
-        self.pub_cloud = rospy.Publisher('/track_proj', PointCloud2, queue_size = 10)
+        #self.pub_cloud = rospy.Publisher('/track_proj', PointCloud2, queue_size = 10)
+        self.pub_pose_ = rospy.Publisher('/uav_landing_region/output/pose', PoseStamped, queue_size = 10)
 
         self.subscribe()
 
@@ -49,9 +51,15 @@ class UAVProjectionToWorld:
         ros_point.header = header
         self.pub_point3d.publish(ros_point)
 
-        cloud_points = [[point3d[0], point3d[1], point3d[2]]]
-        pcd = pcl2.create_cloud_xyz32(header, cloud_points)
-        self.pub_cloud.publish(pcd)
+        ros_pose = PoseStamped()
+        ros_pose.pose.position.x = point3d[0]
+        ros_pose.pose.position.y = point3d[1]
+        ros_pose.pose.position.z = point3d[2]
+        self.pub_pose_.publish(ros_pose)
+
+        #cloud_points = [[point3d[0], point3d[1], point3d[2]]]
+        #pcd = pcl2.create_cloud_xyz32(header, cloud_points)
+        #self.pub_cloud.publish(pcd)
 
     def projection_to_world_coords(self, x, y, ground_z):
         a00 = x * self.proj_matrix[2, 0] - self.proj_matrix[0, 0]

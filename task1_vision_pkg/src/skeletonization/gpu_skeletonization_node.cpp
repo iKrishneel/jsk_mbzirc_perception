@@ -88,7 +88,7 @@ cv::Mat GPUSkeletonization::downsamplePoints(
        }
     }
     
-    const float leaf_size = 10.0f;
+    const float leaf_size = 5.0f;
     pcl::VoxelGrid<PointT> voxel_grid;
     voxel_grid.setInputCloud(cloud);
     voxel_grid.setLeafSize(leaf_size, leaf_size, 0.0);

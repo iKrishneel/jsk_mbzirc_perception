@@ -26,6 +26,9 @@ import random
 import time
 import scipy
 
+#import dijkstra_shortest_path as dsp
+from dijkstra_shortest_path import Graph, Vertex
+from dijkstra_shortest_path import dijkstra, shortest
 
 #sub_mask_ = '/track_region_mapping/output/track_mask'
 sub_mask_ = '/skeletonization/output/image'  # skeletonized
@@ -35,12 +38,12 @@ sub_matrix_ = '/projection_matrix'
 
 sub_image_ = '/downward_cam/camera/image'
 sub_point3d_ = '/uav_landing_region/output/point'
-sub_pose_ = '/uav_landing_region/output/pose'
+sub_pose_ = '/uav_landing_region/output/pose'  # uav pose
 
 pub_image_ = None
 pub_topic_ = '/track_region_segmentation/output/track_mask'
 
-ALTITUDE_THRESH_ = 5.0  ## for building map
+ALTITUDE_THRESH_ = 3.0  ## for building map
 DISTANCE_THRESH_ = 4.0  ## incase of FP
 VEHICLE_SPEED_ = 3.0  ## assume fast seed of 15km/h
 BEACON_POINT_DIST_ = 1.0 ## distances between beacon points in m
@@ -74,10 +77,7 @@ class DijkstraShortestPath:
             for j in range(lenght):
                 if (spt_set[0, j] == 0) and (self.adjacency_matrix[u][j]) and (dist[0, u] != sys.float_info.max) and \
                    (dist[0, u] + self.adjacency_matrix[u][j] < dist[0, j]):
-                    dist[0, j] = dist[0, u] + self.adjacency_matrix[u][j]
-                    
-
-        print dist 
+                    dist[0, j] = dist[0, u] + self.adjacency_matrix[u][j]                    
 
         sorted_index = dist.argsort()
         s_index = sorted_index[0, 1]
@@ -105,6 +105,7 @@ class HeliportAlignmentAndPredictor:
         self.position_list = []
         self.indices_cache = []  # to avoid search over 
         self.dijkstra = None
+        self.adjacency_matrix_ = None
 
     def subscribe(self):
         mask_sub = message_filters.Subscriber(sub_mask_, Image)
@@ -121,18 +122,18 @@ class HeliportAlignmentAndPredictor:
         ats = message_filters.ApproximateTimeSynchronizer((sub_image, sub_point3d, sub_pose), 10, 10)
         ats.registerCallback(self.callback)
         
-    def callback(self, image_msg, point_msg, pose_msg):
+    def callback(self, image_msg, point_msg, uav_pose_msg):
     
         if not self.is_initalized:
             rospy.logerr("-- vehicle track map info is not availible")
             return        
-
-        start = time.time()
             
         current_point = np.array((point_msg.point.x, point_msg.point.y, point_msg.point.z))
         current_point = current_point.reshape(1, -1)
         distances, indices = self.kdtree.kneighbors(current_point)
         
+        print "\n", distances, "\n", current_point
+
         ##? add condition to limit neigbors
         if distances > DISTANCE_THRESH_:
             rospy.logerr("point is to far")
@@ -161,58 +162,70 @@ class HeliportAlignmentAndPredictor:
         vm_dx = curr_map_pos[0] - prev_map_pos[0]
         vm_dy = curr_map_pos[1] - prev_map_pos[1]
         vm_tetha = math.atan2(-vm_dy, vm_dx)# * (180.0/np.pi)
+        
+        distance_between_position = scipy.linalg.norm(np.array(prev_map_pos) - np.array(curr_map_pos))
+        if distance_between_position == 0.0:
+            rospy.logwarn("truck hasnt moved")
+            return
+        
+        print "DIST: ", distance_between_position
 
+        uav_vel = 5.0
+        
+        move_to_index = None
+        for icounter in range(len(self.map_info.point3d)):
+            knn_dist, knn_indices = self.kdtree.radius_neighbors(np.array(curr_map_pos).reshape(1, -1), radius = BEACON_POINT_DIST_* 2, 
+                                                                 return_distance = True)
+            next_point_distance = sys.float_info.max
+            next_index = None
+            stop_flag = False
+            for d, i in zip(knn_dist[0], knn_indices[0]):
+                dist = scipy.linalg.norm(np.array(prev_map_pos) - self.map_info.point3d[i])
+                if (d < dist and d < next_point_distance):
+                    next_point_distance = d
+                    next_index = i
+                    #print d , "\t", dist , "\t", next_point_distance, "\t", next_index
+                    vehicle_time = next_point_distance / VEHICLE_SPEED_
+
+                if not next_index is None:
+                    x, y = self.map_info.indices[next_index]
+                    cv2.circle(im_color, (x, y), 5, (255, 0, 255), -1)
+
+                    uav_position = np.array((uav_pose_msg.pose.position.x, uav_pose_msg.pose.position.y, uav_pose_msg.pose.position.z))
+                    uav_p2p_dist = scipy.linalg.norm(uav_position - self.map_info.point3d[next_index])
+                    uav_time = uav_p2p_dist / uav_vel
+                    if vehicle_time > uav_time:
+                        move_to_index = next_index
+                        stop_flag = True
+                        break
+                    else:
+                        curr_map_pos = self.map_info.point3d[next_index]
+                else:
+                    stop_flag = True
+                    break
+            
+            if stop_flag:
+                break
+                #return
+            icounter += 1
+            
+        if not move_to_index is None:
+            x, y = self.map_info.indices[move_to_index]
+            cv2.circle(im_color, (x, y), 5, (255, 0, 255), -1)
+        else:
+            rospy.logerr("not such points")
+
+        ## update
         iter_count = 0
         ground_z = current_point[0][2]
         previous_point = self.position_list[prev_index][0]
 
-        # while True:
-        #     n_distance, n_index = self.kdtree.radius_neighbors(current_point, radius = VEHICLE_SPEED_, return_distance = True)
-
-        #     closes_index = -1  # index of the point on the map
-        #     max_dist = 0
-
-        #     for i, indx in enumerate(n_index[0]):
-        #         mp_x = self.map_info.point3d[indx][0]
-        #         mp_y = self.map_info.point3d[indx][1]
-        #         map_pt = np.array((mp_x, mp_y, ground_z)) 
-        #         dist_mp = scipy.linalg.norm(map_pt - previous_point)
                 
-        #         if dist_mp > max_dist:
-        #             closes_index = indx
-        #             max_dist = dist_mp
-
-        #     previous_point = current_point
-        #     xx = self.map_info.point3d[closes_index][0]
-        #     yy = self.map_info.point3d[closes_index][1]
-        #     current_point = np.array((xx, yy, ground_z))
-            
-        #     if iter_count > 200:
-        #         break
-        #     iter_count += 1
-
-        #     x1, y1 = self.map_info.indices[closes_index]
-
-        #     #print "iter: ", iter_count, "\t", x1, ",", y1 , "\t", current_point
-            
-        #     cv2.circle(im_color, (x1, y1), 5, (0, 0, 255), -1)
-        #     self.plot_image("plot", im_color)
-        #     cv2.waitKey(3)
-            
-        #     rospy.sleep(1)
-        
-        # end = time.time()
-        # print "PROCESSING TIME: ", (end - start)
-
-        
-        # x1, y1 = self.map_info.indices[closes_index]
-        # cv2.circle(im_color, (x1, y1), 5, (0, 0, 255), -1)
-        
 
         # self.plot_image("input", self.map_info.image)
         self.plot_image("plot", im_color)
         cv2.waitKey(3)
-
+        #rospy.sleep(1)
 
         
     def init_callback(self, mask_msg, odometry_msgs, imu_msg, projection_msg):
@@ -241,41 +254,28 @@ class HeliportAlignmentAndPredictor:
         self.map_info.imu = imu_msg
         self.map_info.image = image
         self.is_initalized = True
+
+        ### temp write to file
+        #np.savetxt('/home/krishneel/Desktop/mbzirc/indices_data.txt', np.array(indices))                
+        #np.savetxt('/home/krishneel/Desktop/mbzirc/points_data.txt', np.array(world_points))
+
         
         neighbors_size = 1
         self.kdtree = NearestNeighbors(n_neighbors = neighbors_size, radius = BEACON_POINT_DIST_, algorithm = "kd_tree", 
                                        leaf_size = 30, \
-                                       metric='euclidean').fit(np.array(world_points))        
-        
+                                       metric='euclidean').fit(np.array(world_points))                
 
         rospy.logwarn("computing adjacency matrix")
-        start = time.time()
-        adjacency_matrix = self.map_beacon_points(np.array(world_points))
 
-        self.dijkstra = DijkstraShortestPath(adjacency_matrix)
+        start = time.time()
+
+        #self.adjacency_matrix_ = self.beacon_points_adjacency_matrix(np.array(world_points))
+        self.adjacency_matrix_ = self.map_beacon_points(np.array(world_points))
+        self.dijkstra = DijkstraShortestPath(self.adjacency_matrix_)
+        print self.dijkstra.dijkstra(0)
 
         end = time.time()
-        rospy.logerr(end - start)
-
-        shortest_index, shortest_dist = self.dijkstra.dijkstra(10)
-        print "DISTANCE", shortest_index, "\t", shortest_dist
-
-
-        
-
-
-        # img = np.zeros((image.shape[0], image.shape[0], 3),  np.uint8)
-        # for i, al in enumerate(adjacency_list):
-        #     index = indices[al[0]]
-        #     color = (0, 255, 0)
-        #     rad = 3
-        #     if i == 0:
-        #         color = (0, 0, 255)
-        #         rad = 5
-        #     cv2.circle(img, (index[0], index[1]), rad,  color, -1)
-        # self.plot_image("beacon", img)
-        # cv2.waitKey(0)
-
+        print("processing time: ", str(end - start))
         rospy.loginfo("-- map initialized")
 
         del image
@@ -283,12 +283,18 @@ class HeliportAlignmentAndPredictor:
         del indices
         del altit
 
-    
-        #def sample_beacon_points2(self, points):
-        #current_index = 0
-        #flag = np.zeros((1, points.shape[current_index]), np.bool)
-        #flag[0][current_index] = True
+    ## O(N^2) style
+    def beacon_points_adjacency_matrix(self, points):
+        size = len(points)
+        adjacency_matrix = np.zeros((size, size), np.float)
+        for i, point_a in enumerate(points):
+            for j, point_b in enumerate(points):
+                adjacency_matrix[i, j] = scipy.linalg.norm(point_a - point_b)
+                #adjacency_matrix[j, i] = adjacency_matrix[i, j]
+        return adjacency_matrix
 
+        
+    ## buiding adjacency map using kdtree
     def map_beacon_points(self, points):
         neigbor_size = 4
         size = len(points)
@@ -484,23 +490,212 @@ def main():
     cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
-    #main()
+
+def map_beacon_points(points, kdtree):
+    neigbor_size = 4
+    size = len(points)
+    adjacency_matrix = np.zeros((size, size), np.float)    
+    graph = Graph()
+
+    for i, point in enumerate(points):
+        knn_distance, knn_indices = kdtree.kneighbors(point.reshape(1, -1), n_neighbors = neigbor_size, return_distance = True)
+        for distance, index in zip(knn_distance[0], knn_indices[0]):
+            adjacency_matrix[i, index] = distance
+        graph.add_vertex(i)
+            
+    return (graph, adjacency_matrix)
+
+
+def data_test_from_file():
+    indices = np.loadtxt('/home/krishneel/Desktop/mbzirc/indices_data.txt', delimiter = ' ')
+    world_points = np.loadtxt('/home/krishneel/Desktop/mbzirc/points_data.txt', delimiter = ' ')
+    
+    search_radius = 5.0
+    kdtree = NearestNeighbors(n_neighbors = 5, radius = search_radius, algorithm = "kd_tree", 
+                                   leaf_size = 30, \
+                                   metric='euclidean').fit(np.array(world_points))
+
+    image = np.zeros((480, 640), np.uint8)
+    for i in indices:
+        image[int(i[1]), int(i[0])] = 255
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    graph = Graph()
+    graph, adjacency_matrix = map_beacon_points(np.array(world_points), kdtree)
+    adjacency_list = []
+    adjacency_weight = []
+    for i in range(adjacency_matrix.shape[0]):
+        adj_list = []
+        adj_weight = []
+        #adj_list.append(i)
+        for j in range(adjacency_matrix.shape[0]):
+            edge_weight = adjacency_matrix[i, j]
+            if edge_weight > 0.0 and i != j:
+                adj_list.append(j)
+                adj_weight.append(edge_weight)
+                #graph.add_edge(i, j, edge_weight)            
+        if not adj_list is None:
+            adjacency_list.append(adj_list)
+            adjacency_weight.append(adj_weight)
+
+    adjacency_list = np.array(adjacency_list)
+    adjacency_weight = np.array(adjacency_weight)
+    traverse_flag = np.zeros((adjacency_list.shape[0], 1), np.bool)
+
+    print adjacency_list
+    print adjacency_weight
+
+    curr_index = 1
+    prev_index = 0
+
+    traverse_flag[prev_index] = True
+    traverse_flag[curr_index] = True
+
+    distance_list = np.zeros((adjacency_list.shape[0], adjacency_list.shape[0]), np.float)
+    distance_list.fill(sys.float_info.max)
+    distance_list[curr_index, curr_index] = 0.0
+
+    _index = curr_index
+    is_found = False
+    while True:
+        index_list = adjacency_list[_index]
+        print index_list
+        for i, index in enumerate(index_list):
+            print i
+            print "checking: ", index, "\t", traverse_flag[i]
+            if not traverse_flag[i]:
+                print "\t\tchecking: ", index, "\t", traverse_flag[i]
+                
+                distance_list[_index, index] = adjacency_weight[_index, i]
+                distance_list[index, _index] = adjacency_weight[_index, i]
+                
+                _index = index
+                traverse_flag[i] = True
+                #break
+                
+            cv2.imshow("image", image)
+            cv2.waitKey(0)
+                #if uav can intercept solve it
+
+        if _index == 100:
+            is_found = True
+
+        if is_found:
+            break
+
+    for index in adjacency_list:
+        for i in index:
+            if not traverse_flag[i]:
+                print "checking: ", i 
+                
+                traverse_flag[i] = True
     
 
-    adjacency_matrix = ((0, 4, 0, 0, 0, 0, 0, 8, 0),
-                        (4, 0, 8, 0, 0, 0, 0, 11, 0),
+    return
+
+    index_1 = 2
+    index_2 = 100
+
+    for i in range(graph.num_vertices):
+        #vertex = graph.get_vertex(i)
+        node = graph.vert_dict[i].get_connections()
+        print graph.vert_dict[i].get_distance()
+    
+    return 
+
+    dijkstra(graph, graph.get_vertex(index_1))
+    target = graph.get_vertex(index_2)
+    path = [target.get_id()]    
+    shortest(target, path)
+
+
+
+    print '\n', path , '\n', target
+    print 'The shortest path : %s' %(path[::-1])
+
+    
+
+
+
+    indices_flag = np.zeros((indices.shape[0], 1), np.bool)
+    center = (int(indices[index_1][0]), int(indices[index_1][1]))
+    cv2.circle(image, center, 5, (0, 255, 255), -1)
+
+    center1 = (int(indices[index_2][0]), int(indices[index_2][1]))
+    cv2.circle(image, center1, 5, (0, 0, 255), -1)
+    
+    cv2.namedWindow("image", cv2.WINDOW_NORMAL)
+    cv2.imshow("image", image)
+    cv2.waitKey(0)
+
+    return
+
+    prev_point = world_points[idx]
+    radius_thresh = 0.0
+    while True:
+        indices_flag[idx] = True
+
+        #dist, index = kdtree.kneighbors(np.array(world_points[idx]).reshape(1, -1))
+        dist, index = kdtree.radius_neighbors(np.array(world_points[idx]).reshape(1, -1), radius = search_radius, 
+                                              return_distance = True)
+
+        min_dist = 1e8
+        neigh_index = None
+        
+        neigh_dist = scipy.linalg.norm(np.array(world_points[idx]) - np.array(prev_point))
+        neigh_angle = np.math.atan2(world_points[idx][1] - prev_point[1], world_points[idx][0] - prev_point[0])
+        print "\033[31m ", neigh_dist, "\t", neigh_angle * 180.0/np.pi , "\033[0m"
+
+        for d, i in zip(dist[0], index[0]):
+            prev_pt_dist = scipy.linalg.norm(np.array(world_points[i]) - np.array(prev_point))
+            angle = np.math.atan2(world_points[i][1] - prev_point[1], world_points[i][0] - prev_point[0])
+
+            print "\033[32m ", prev_pt_dist, "\t", angle * 180.0/np.pi , "\t",  idx, "\t", i , "\t", d, "\033[0m" 
+
+            if (i != idx) and (d < min_dist) and (indices_flag[i] == False) and (prev_pt_dist > neigh_dist):
+                min_dist = d
+                neigh_index = i
+        
+        if neigh_index is None:
+            print "ending"
+            break
+        
+        angle = np.math.atan2(world_points[idx][1] - prev_point[1], world_points[idx][0] - prev_point[0])
+        print "angle: ", angle * (180.0)/np.pi
+
+        prev_point = world_points[idx]
+        idx = neigh_index
+        
+        center = (int(indices[neigh_index][0]), int(indices[neigh_index][1]))
+        cv2.circle(image, center, 2, (0, 255, 0), -1)
+
+
+        cv2.imshow("image", image)
+        cv2.waitKey(0)
+
+    cv2.imshow("image", image)
+    cv2.waitKey(0)
+
+
+
+
+
+if __name__ == "__main__":
+    #main()
+    data_test_from_file()
+
+    """""
+    adjacency_matrix = ((0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        (0, 0, 8, 0, 0, 0, 0, 11, 0),
                         (0, 8, 0, 7, 0, 4, 0, 0, 2),
                         (0, 0, 7, 0, 9, 14, 0, 0, 0),
                         (0, 0, 0, 9, 0, 10, 0, 0, 0),
                         (0, 0, 4, 0, 10, 0, 2, 0, 0),
                         (0, 0, 0, 14, 0, 2, 0, 1, 6),
-                        (8, 11, 0, 0, 0, 0, 1, 0, 7),
+                        (0, 11, 0, 0, 0, 0, 1, 0, 7),
                         (0, 0, 2, 0, 0, 0, 6, 7, 0))
     adjacency_matrix = np.array(adjacency_matrix)
     #print adjacency_matrix
     dsp = DijkstraShortestPath(adjacency_matrix)
-    print dsp.dijkstra(7)
-
-
-
+    print dsp.dijkstra(0)
+    """""

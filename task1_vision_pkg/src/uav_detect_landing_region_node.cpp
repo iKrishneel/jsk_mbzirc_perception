@@ -4,11 +4,15 @@
 #include <task1_vision_pkg/uav_detect_landing_region.h>
 
 UAVLandingRegion::UAVLandingRegion() :
-    down_size_(2), ground_plane_(0.0), track_width_(3.0f),
+    down_size_(2), ground_plane_(1.0), track_width_(3.0f),
     landing_marker_width_(1.1f), min_wsize_(8), nms_thresh_(0.01f),
     icounter_(0), num_threads_(16), is_publish_(true), run_type_gazebo_(true) {
     this->nms_client_ = this->pnh_.serviceClient<
        jsk_tasks::NonMaximumSuppression>("non_maximum_suppression");
+
+    this->prev_position_.point.x = -10000.0f;
+    this->prev_position_.point.y = -10000.0f;
+    this->prev_position_.point.z = -10000.0f;
     
     //! svm load or save path
     std::string svm_path;
@@ -19,7 +23,7 @@ UAVLandingRegion::UAVLandingRegion() :
     }
     
     //! train svm
-    bool is_train = !true;
+    bool is_train = true;
     if (is_train) {
        std::string object_data_path;
        std::string background_dataset_path;
@@ -217,6 +221,20 @@ void UAVLandingRegion::imageCB(
        marker_point.y * this->down_size_);
 
     ROS_INFO("\033[033m -- DONE \033[0m");
+
+    //! temp only for previous
+    if (this->prev_position_.point.x == -10000.0f) {
+       this->prev_position_ = ros_point;
+    } else {
+       float dist = std::pow((ros_point.point.x - prev_position_.point.x), 2)
+          + std::pow((ros_point.point.y - prev_position_.point.y), 2);
+       dist = std::sqrt(dist);
+       if (dist > 10.0f) {
+          ROS_ERROR("DETECTION IS TOO FAR OFF NOW");
+          // return;
+       }
+    }
+    
     
     /**
      * DEBUG ONLY
@@ -282,8 +300,15 @@ void UAVLandingRegion::imageCB(
     ros_pose.pose.orientation.z = imu_msg->orientation.z;
     ros_pose.pose.orientation.w = imu_msg->orientation.w;
     ros_pose.header = image_msg->header;
-    this->pub_pose_.publish(ros_pose);
+    //! this->pub_pose_.publish(ros_pose); //! uncommented for chens
+    //! motion testing
 
+    geometry_msgs::PoseStamped tracker_pose;
+    tracker_pose.pose.position.x = ros_point.point.x;
+    tracker_pose.pose.position.y = ros_point.point.y;
+    tracker_pose.pose.position.z = ros_point.point.z;
+    this->pub_pose_.publish(tracker_pose);
+    
     cv::waitKey(5);
 }
 
@@ -301,7 +326,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     
     cv::Mat im_edge = image.clone();
     if (this->run_type_gazebo_) {
-       cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
+       // cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
        cv::Canny(image, im_edge, 50, 100);
     }
     cv::Mat weight = img.clone();
@@ -321,8 +346,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
 #pragma omp parallel for num_threads(this->num_threads_)
 #endif
     for (int j = 0; j < im_edge.rows; j += 2) {
-       for (int i = 0; i < im_edge.cols; i += 2) {
-          
+       for (int i = 0; i < im_edge.cols; i += 4) {
           if (static_cast<int>(im_edge.at<uchar>(j, i)) != 0) {
              cv::Rect rect = cv::Rect(i, j, wsize.width, wsize.height);
              if (rect.x + rect.width < image.cols &&
@@ -364,8 +388,9 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     nms_srv.request.threshold = this->nms_thresh_;
 
     //! 2 - non_max_suprresion
-    cv::Point2f center = cv::Point2f(-1, -1);
+    cv::Point2f center = cv::Point2f(-1.0, -1.0);
     if (this->nms_client_.call(nms_srv)) {
+       cv::Point2f box_center = cv::Point2f(0.0f, 0.0f);
        for (int i = 0; i < nms_srv.response.bbox_count; i++) {
           cv::Rect_<int> rect = cv::Rect_<int>(
              nms_srv.response.bbox[i].x,
@@ -373,9 +398,12 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
              nms_srv.response.bbox[i].width,
              nms_srv.response.bbox[i].height);
           
-          center.x = rect.x + rect.width / 2;
-          center.y = rect.y + rect.height / 2;
+          // box_center.x += (rect.x + rect.width / 2);
+          // box_center.y += (rect.y + rect.height / 2);
 
+          center.x += (rect.x + rect.width / 2);
+          center.y += (rect.y + rect.height / 2);
+          
           // for viz
           cv::Point2f vert1 = cv::Point2f(center.x, center.y - wsize.width);
           cv::Point2f vert2 = cv::Point2f(center.x, center.y + wsize.width);
@@ -385,6 +413,9 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
           cv::line(weight, hori1, hori2, cv::Scalar(0, 0, 255), 1);
           cv::rectangle(weight, rect, cv::Scalar(0, 255, 0), 1);
        }
+       // center.x = box_center.x / (nms_srv.response.bbox_count);
+       // center.y = box_center.y / (nms_srv.response.bbox_count);
+       
     } else {
        ROS_FATAL("NON-MAXIMUM SUPPRESSION SRV NOT CALLED");
        return cv::Point2f(-1, -1);

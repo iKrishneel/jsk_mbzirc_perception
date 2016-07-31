@@ -91,6 +91,8 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     bool is_publish_;
     bool run_type_gazebo_;  //! callback for gazebo and trials
     std::string type_flag_;  //! bootstrp the tracker
+    
+    Point3DStamped prev_position_;
    
  protected:
     ros::NodeHandle pnh_;

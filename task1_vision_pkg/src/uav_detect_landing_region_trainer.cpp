@@ -129,7 +129,7 @@ void UAVLandingRegionTrainer::trainSVM(
     this->svm_->setDegree(0.0);
     this->svm_->setGamma(0.90);
     this->svm_->setCoef0(0.70);
-    this->svm_->setC(1.0);
+    this->svm_->setC(5.0);
     this->svm_->setNu(0.70);
     this->svm_->setP(1.0);
     // this->svm_->setClassWeights(cv::Mat());

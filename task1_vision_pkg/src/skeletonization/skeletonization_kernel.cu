@@ -161,14 +161,14 @@ void skeletonizationGPU(cv::Mat &image, unsigned char *skel_points) {
     std::cout << "\033[33m ELAPSED TIME:  \033[0m" << elapsed_time/1000.0f
               << "\n";
     */
-    /*
-    icounter = 0;
-    for (int i = 0; i < image.rows; i++) {
-       for (int j = 0; j < image.cols; j++) {
-          image.at<uchar>(i, j) = temp_data[icounter++] * 255;
-       }
-    }
-    */
+
+    // icounter = 0;
+    // for (int i = 0; i < image.rows; i++) {
+    //    for (int j = 0; j < image.cols; j++) {
+    //       image.at<uchar>(i, j) = skel_points[icounter++] * 255;
+    //    }
+    // }
+    
     cudaFree(d_image);
     cudaFree(d_prev);
     cudaFree(d_count);
