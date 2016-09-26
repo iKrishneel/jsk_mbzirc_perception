@@ -96,7 +96,21 @@ void UAVTracker::callback(const sensor_msgs::Image::ConstPtr &image_msg) {
     this->pub_rect_.publish(ros_point);
     // this->pub_rect_.publish(jsk_rect);
 
-    
+
+    /**
+     * just for view in high quality
+     */
+    cv::Mat cv_ptr_img = cv_ptr->image.clone();
+    cv::line(cv_ptr_img, this->topLeft * down_size_,  this->topRight * down_size_, color, 3);
+    cv::line(cv_ptr_img, this->topRight * down_size_, this->bottomRight * down_size_, color, 3);
+    cv::line(cv_ptr_img, this->bottomRight * down_size_, this->bottomLeft * down_size_, color, 3);
+    cv::line(cv_ptr_img, this->bottomLeft * down_size_, this->topLeft * down_size_, color, 3);
+
+    // cv::Point pt(topLeft.x * down_size_ + (topRight.x - topLeft.x), (topRight.y - topLeft.y)/ 2* down_size_);
+    // cv::Point pt1(topLeft.x *down_size_ + (bottomRight.x - bottomLeft.x) , (bottomRight.y - bottomLeft.y) /2* down_size_);
+    // cv::line(cv_ptr_img, pt, pt1, cv::Scalar(0, 0, 255), 1);
+
+    img = cv_ptr_img.clone();
     
     cv_bridge::CvImagePtr pub_msg(new cv_bridge::CvImage);
     pub_msg->header = image_msg->header;
