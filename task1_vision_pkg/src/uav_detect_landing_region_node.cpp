@@ -11,15 +11,16 @@ UAVLandingRegion::UAVLandingRegion() :
        jsk_tasks::NonMaximumSuppression>("non_maximum_suppression");
     
     this->svm_ = cv::ml::SVM::create();
-    /*
+
     //! svm load or save path
     std::string svm_path;
+    /*
     this->pnh_.getParam("svm_path", svm_path);
     if (svm_path.empty()) {
        ROS_ERROR("NOT SVM DETECTOR PATH. PROVIDE A VALID PATH");
        return;
     }
-    /*
+    */
     //! train svm
     bool is_train = true;
     if (is_train) {
@@ -41,9 +42,10 @@ UAVLandingRegion::UAVLandingRegion() :
     // this->svm_ = cv::Algorithm::load<cv::ml::SVM>(svm_path);
     
     ROS_INFO("\033[34m-- SVM DETECTOR SUCCESSFULLY LOADED \033[0m");
+    return;
     
     this->onInit();
-    */
+
 
     std::string directory =
        "/home/krishneel/Documents/caffe-tutorials/hdf5/caffe-net/";

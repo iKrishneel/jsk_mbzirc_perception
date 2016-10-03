@@ -8,11 +8,14 @@
 
 #include <task1_vision_pkg/histogram_of_oriented_gradients.h>
 #include <fstream>
+#include <boost/thread/mutex.hpp>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <boost/thread/mutex.hpp>
+#include <opencv2/cudafeatures2d.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudaobjdetect.hpp>
 
 class UAVLandingRegionTrainer {
 
@@ -21,7 +24,7 @@ class UAVLandingRegionTrainer {
     std::string positive_data_path_;
     std::string negative_data_path_;
     std::string data_directory_;
-   
+
  public:
     UAVLandingRegionTrainer();
     void trainUAVLandingRegionDetector(const std::string, const std::string,
@@ -33,6 +36,8 @@ class UAVLandingRegionTrainer {
     cv::Mat regionletFeatures(const cv::Mat, const cv::Size);
 
     boost::shared_ptr<HOGFeatureDescriptor> hog_;
+   
+    cv::Ptr<cv::cuda::HOG> d_hog_;
     cv::Ptr<cv::ml::SVM> svm_;
     cv::Size sliding_window_size_;
     std::string svm_save_path_;
