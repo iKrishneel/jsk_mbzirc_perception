@@ -47,7 +47,6 @@ void UAVLandingRegionTrainer::uploadDataset(
        ROS_ERROR("LABEL AND FEATURE DIMENSIONS ARE NOT SAME");
        return;
     }
-    
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
        // fprintf(stdout, "Current working dir: %s\n", cwd);
