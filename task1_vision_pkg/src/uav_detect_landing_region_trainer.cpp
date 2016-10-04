@@ -25,12 +25,12 @@ void UAVLandingRegionTrainer::trainUAVLandingRegionDetector(
 
     ROS_INFO("\033[33m READING AND EXTRACTING FEATURES\33[0m");
     std::string train_feature_path;
-    this->readAndExtractImageFeatures(train_feature_path);
-    
+    this->readAndExtractImageFeatures(train_feature_path, "/train_features");
+
     this->positive_data_path_ = test_pos_path;
     this->negative_data_path_ = test_neg_path;
     std::string test_feature_path;
-    this->readAndExtractImageFeatures(test_feature_path);
+    this->readAndExtractImageFeatures(test_feature_path, "/test_features");
     
     if (train_feature_path.empty() || test_feature_path.empty()) {
        ROS_ERROR("FILE NOT WRITTEN");
@@ -54,7 +54,7 @@ void UAVLandingRegionTrainer::trainUAVLandingRegionDetector(
        ROS_ERROR("HDF5 CONVERTOR FOR TRAIN SRV FAILED!");
        return;
     }
-
+    
     p_str.data = test_feature_path;
     p_str1.data = "landing_marker_test_features";
 
@@ -74,12 +74,12 @@ void UAVLandingRegionTrainer::trainUAVLandingRegionDetector(
        ROS_ERROR("CAFFE NET SRV FAILED!");
        return;
     }
-
+    
     ROS_INFO("\033[34m TRAINED SUCCESSFULLY\33[0m");
 }
 
 void UAVLandingRegionTrainer::readAndExtractImageFeatures(
-    std::string &feature_txt_path) {
+    std::string &feature_txt_path, const std::string suffix) {
     cv::Mat feature_vector;
     cv::Mat labels;
     this->getTrainingDataset(feature_vector, labels, this->positive_data_path_);
@@ -98,7 +98,7 @@ void UAVLandingRegionTrainer::readAndExtractImageFeatures(
        return;
     }
     
-    feature_txt_path = std::string(cwd) + "/features_labels.txt";
+    feature_txt_path = std::string(cwd) + suffix + ".txt";
     std::ofstream outfile(feature_txt_path.c_str(), std::ios::out);
     for (int j = 0; j < feature_vector.rows; j++) {
        for (int i = 0; i < feature_vector.cols; i++) {
@@ -120,10 +120,13 @@ void UAVLandingRegionTrainer::getTrainingDataset(
     char buffer[255];
     std::ifstream in_file;
     in_file.open((directory).c_str(), std::ios::in);
-    if (!in_file.eof()) {
-       while (in_file.good()) {
-          in_file.getline(buffer, 255);
-          std::string read_line(buffer);
+    // if (!in_file.eof()) {
+    //    while (in_file.good()) {
+    //       in_file.getline(buffer, 255);
+
+    std::string read_line;
+    while (std::getline(in_file, read_line)) {
+       // std::string read_line(buffer);
           if (!read_line.empty()) {
              std::istringstream iss(read_line);
              std::string img_path;
@@ -140,11 +143,14 @@ void UAVLandingRegionTrainer::getTrainingDataset(
                    float lab = std::atof(l.c_str());
                    labels.push_back(lab);
                 }
+             } else {
+                ROS_ERROR("IMAGE NOT FOUND: ");
+                std::cout << this->data_directory_ + img_path  << "\n";
              }
           }
-       }
     }
-   
+
+    std::cout << feature_vector.size() << " " << labels.size()  << "\n";
     std::cout << "Training Dataset Reading Completed......" << std::endl;
 }
 
@@ -174,6 +180,22 @@ cv::Mat UAVLandingRegionTrainer::extractFeauture(
     */
     return desc;
 }
+
+cv::cuda::GpuMat UAVLandingRegionTrainer::extractFeauture(
+    cv::cuda::GpuMat &d_image) {
+    if (d_image.empty()) {
+       return cv::cuda::GpuMat();
+    }
+    if (d_image.channels() > 1) {
+       cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
+    }
+    cv::cuda::resize(d_image, d_image, this->sliding_window_size_);
+    cv::cuda::GpuMat d_descriptor;
+    this->d_hog_->compute(d_image, d_descriptor);
+    return d_descriptor;
+}
+
+
 
 cv::Mat UAVLandingRegionTrainer::regionletFeatures(
     const cv::Mat image, const cv::Size wsize) {

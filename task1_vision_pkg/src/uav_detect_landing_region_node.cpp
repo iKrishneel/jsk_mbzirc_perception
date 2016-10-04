@@ -48,57 +48,20 @@ UAVLandingRegion::UAVLandingRegion() :
     net_->CopyTrainedLayersFrom(caffe_model);
 
     ROS_INFO("\033[34m LOADED CAFFE MODEL \033[0m");
-    // LOG(INFO) << "Blob size: "<< net_->input_blobs().size();
+
+
+    // cv::Mat image = cv::imread(
+    //    "/home/krishneel/Desktop/mbzirc/track-data/frame0000.jpg");
+    // cv::resize(image, image, cv::Size(320, 240));
     
-    //! prediction
+    // this->traceandDetectLandingMarker(image, image,
+    //                                   this->sliding_window_size_);    
+    // cv::cuda::GpuMat d_image(image);
+    // cv::cuda::GpuMat feat = this->extractFeauture(d_image);
+    // this->caffeClassifer(feat);
 
-    cv::Mat image = cv::imread(pkg_directory + "/data/positive/frame0000.jpg");
-    cv::Mat feat = this->extractFeauture(image);
 
-    std::cout << "TYPE: " << feat.size()  << "\n";
-    
-    // std::vector<float> test_features;
-    // std::copy(std::istream_iterator<float>(in_file),
-    //           std::istream_iterator<float>(),
-    //           std::back_inserter(test_features));
-    // std::cout << test_features.size()  << "\n";
-
-    caffe::Blob<float>* data_layer = net_->input_blobs()[0];
-
-    std::vector<cv::Mat>* input_channels;
-    int width = data_layer->width();
-    int height = data_layer->height();
-
-    std::cout << "Info: " << width << "\t" << height  << "\n";
-    
-    float* input_data = data_layer->mutable_cpu_data();
-    // float* input_data = data_layer->mutable_gpu_data();
-    for (int i = 0; i < data_layer->height(); ++i) {
-       // input_data[i] = test_features.at(i);
-       input_data[i] = feat.at<float>(0, i);
-    }
-    
-    std::clock_t start;
-    start = std::clock();
-    
-    // LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
-    net_->Forward();
-
-    caffe::Blob<float>* output_layer = net_->output_blobs()[0];
-    const float* begin = output_layer->cpu_data();
-    const float* end = begin + output_layer->channels();
-    std::vector<float> predict = std::vector<float>(begin, end);
-
-    double duration = (std::clock() - start) /
-       static_cast<double>(CLOCKS_PER_SEC);
-    std::cout <<"printf: " << duration <<'\n';
-    
-    
-    for (int i = 0; i < predict.size(); i++) {
-       std::cout << "PREDICT: " << predict[i]  << "\n";
-    }
-
-    // this->onInit();
+    this->onInit();
 }
 
 void UAVLandingRegion::onInit() {
@@ -115,6 +78,12 @@ void UAVLandingRegion::onInit() {
 }
 
 void UAVLandingRegion::subscribe() {
+    //! debug only
+
+    this->debug_sub_ = this->pnh_.subscribe(
+      "input_image", 1, &UAVLandingRegion::imageCBDebug, this);
+
+   
     this->sub_image_.subscribe(this->pnh_, "input_image", 1);
     this->sub_mask_.subscribe(this->pnh_, "input_mask", 1);
     this->sub_imu_.subscribe(this->pnh_, "input_imu", 1);
@@ -186,54 +155,6 @@ void UAVLandingRegion::imageCB(
 
     ROS_INFO("\033[033m -- DONE \033[0m");
     
-    /**
-     * DEBUG ONLY
-     */
-    /*
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(
-       new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::PointXYZRGB pt;
-    pt.x = ros_point.point.x;
-    pt.y = ros_point.point.y;
-    pt.z = ros_point.point.z;
-    pt.r = 0; pt.g = 255; pt.b = 0;
-    cloud->push_back(pt);
-    
-    sensor_msgs::PointCloud2 ros_cloud;
-    pcl::toROSMsg(*cloud, ros_cloud);
-    ros_cloud.header = image_msg->header;
-    ros_cloud.header.frame_id = "/world";
-    this->pub_cloud_.publish(ros_cloud);
-    
-    //! update motion
-    /*
-    this->motion_info_[0] = this->motion_info_[1];
-    this->motion_info_[1].veh_position = ros_point.point;
-    */
-    /*
-    this->motion_info_[0] = this->motion_info_[1];
-    this->motion_info_[1].veh_position = marker_point;
-    this->motion_info_[1].time = image_msg->header.stamp;
-    
-    if (this->icounter_++ > 1) {
-       ROS_INFO("\033[34m COMPUTING MOTION \033[0m");
-
-
-       std::cout << motion_info_[0].time.toSec() << "\t"
-                 << motion_info_[1].time.toSec()  << "\n";
-       
-       cv::Point2f pred_position;
-       this->predictVehicleRegion(pred_position, this->motion_info_);
-       cv::circle(image, pred_position, 10, cv::Scalar(255, 0, 255), CV_FILLED);
-
-       std::cout << "Points: " << pred_position  << "\n";
-       
-       std::string wname = "predict";
-       cv::namedWindow(wname, cv::WINDOW_NORMAL);
-       cv::imshow(wname, image);
-    }
-    */
-    
     ros_point.header = image_msg->header;
     this->pub_point_.publish(ros_point);
     
@@ -255,63 +176,93 @@ void UAVLandingRegion::imageCB(
     cv::waitKey(5);
 }
 
+
+void UAVLandingRegion::imageCBDebug(
+    const sensor_msgs::Image::ConstPtr &image_msg) {
+
+    ROS_WARN("IN CALLBACK");
+    cv::Mat image = this->convertImageToMat(image_msg, "bgr8");
+    cv::resize(image, image, cv::Size(320, 240));
+    cv::Size wsize = cv::Size(20, 20);
+    cv::Point2f marker_point = this->traceandDetectLandingMarker(
+       image, image, wsize);
+
+    cv::waitKey(5);
+}
+
+
 cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     cv::Mat img, const cv::Mat marker, const cv::Size wsize) {
     if (img.empty() || marker.empty() || img.size() != marker.size()) {
         ROS_ERROR("EMPTY INPUT IMAGE FOR DETECTION");
         return cv::Point2f(-1, -1);
     }
-    // cv::Mat image = marker.clone();
+
     cv::Mat image = img.clone();
+    cv::cuda::GpuMat d_image(img);
+    
     if (image.type() != CV_8UC1) {
-       cv::cvtColor(image, image, CV_BGR2GRAY);
+       // cv::cvtColor(image, image, CV_BGR2GRAY);
+       cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
     }
 
-    cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
+    // cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
+    cv::Ptr<cv::cuda::Filter> filter = cv::cuda::createGaussianFilter(
+       d_image.type(), d_image.type(), cv::Size(5, 5), 1);
+    filter->apply(d_image, d_image);
+
+    cv::Ptr<cv::cuda::CannyEdgeDetector> canny_edge =
+       cv::cuda::createCannyEdgeDetector(50.0, 100.0, 3, true);
+    cv::cuda::GpuMat d_edge;
+    canny_edge->detect(d_image, d_edge);
     
-    cv::Mat im_edge;
-    cv::Canny(image, im_edge, 50, 100);
-    cv::Mat weight = img.clone();
+    // cv::Mat im_edge;
+    // cv::Canny(image, im_edge, 50, 100);
 
     jsk_tasks::NonMaximumSuppression nms_srv;
+    const int stride = 4;
+    cv::cuda::GpuMat d_roi;
+
     
-    //! 1 - detect
-#ifdef _OPENMP
-#pragma omp parallel for num_threads(this->num_threads_)
-#endif
-    for (int j = 0; j < im_edge.rows; j += 2) {
-       for (int i = 0; i < im_edge.cols; i += 2) {
-          if (static_cast<int>(im_edge.at<uchar>(j, i)) != 0) {
+    cv::Mat det_img = img.clone();
+    
+    
+    for (int j = 0; j < img.rows; j += stride) {
+       for (int i = 0; i < img.cols; i += stride) {
+          if (static_cast<int>(img.at<uchar>(j, i)) != 0) {
              cv::Rect rect = cv::Rect(i, j, wsize.width, wsize.height);
              if (rect.x + rect.width < image.cols &&
                  rect.y + rect.height < image.rows) {
-                cv::Mat roi = img(rect).clone();
-                cv::resize(roi, roi, this->sliding_window_size_);
-                cv::Mat desc = this->extractFeauture(roi);
                 
-                float response = this->svm_->predict(desc);
+                d_roi = d_image(rect);
+                cv::cuda::resize(d_roi, d_roi, this->sliding_window_size_);
+                cv::cuda::GpuMat d_desc = this->extractFeauture(d_roi);
+                
+                float response = this->caffeClassifer(d_desc);
+                
                 if (response == 1) {
+
+                   cv::rectangle(det_img, rect, cv::Scalar(0, 255, 0), 2);
+                   
                    jsk_msgs::Rect bbox;
                    bbox.x = rect.x;
                    bbox.y = rect.y;
                    bbox.width = rect.width;
                    bbox.height = rect.height;
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-                   {
-                      nms_srv.request.rect.push_back(bbox);
-                      nms_srv.request.probabilities.push_back(response);
-                   }
-                   // cv::rectangle(weight, rect, cv::Scalar(0, 255, 0), 1);
+                   
+                   nms_srv.request.rect.push_back(bbox);
+                   nms_srv.request.probabilities.push_back(response);
+
                 }
-            }
+             }
           }
        }
     }
+
     nms_srv.request.threshold = this->nms_thresh_;
 
     //! 2 - non_max_suprresion
+    cv::Mat weight = img.clone();
     cv::Point2f center = cv::Point2f(-1, -1);
     if (this->nms_client_.call(nms_srv)) {
        for (int i = 0; i < nms_srv.response.bbox_count; i++) {
@@ -348,6 +299,47 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     cv::imshow(wname, weight);
 
     return center;
+}
+
+float UAVLandingRegion::caffeClassifer(cv::cuda::GpuMat d_desc) {
+   
+    caffe::Blob<float>* data_layer = this->net_->input_blobs()[0];
+    float* input_data = data_layer->mutable_cpu_data();
+    const int BYTE = sizeof(float) * data_layer->height();
+    // float* input_data = data_layer->mutable_gpu_data();
+
+    cv::Mat feat;
+    d_desc.download(feat);
+
+    // std::memcpy(input_data, d_desc.data, BYTE);
+    std::memcpy(input_data, feat.data, BYTE);
+    
+    /*
+    for (int i = 0; i < data_layer->height(); ++i) {
+       std::cout << input_data[i] << " " <<
+                 feat.at<float>(0, i) << "\n";
+    }
+    */
+
+    
+    // LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
+    this->net_->Forward();
+
+    caffe::Blob<float>* output_layer = this->net_->output_blobs()[0];
+    const float* begin = output_layer->cpu_data();
+    const float* end = begin + output_layer->channels();
+    std::vector<float> predict = std::vector<float>(begin, end);
+    
+    float max_prob = 0.0f;
+    int max_idx = -1;
+    for (int i = 0; i < predict.size(); i++) {
+       if (predict[i] > max_prob) {
+          max_prob = predict[i];
+          max_idx = i;
+       }
+       // std::cout << "PREDICT: " << predict[i]  << "\n";
+    }
+    return max_idx;
 }
 
 cv::Size UAVLandingRegion::getSlidingWindowSize(

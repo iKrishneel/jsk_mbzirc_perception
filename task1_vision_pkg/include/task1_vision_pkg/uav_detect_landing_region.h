@@ -11,7 +11,6 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-// #include <image_geometry/pinhole_camera_model.h>
 #include <cv_bridge/cv_bridge.h>
 
 #include <geometry_msgs/PolygonStamped.h>
@@ -83,7 +82,8 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     ros::Publisher pub_point_;
     ros::Publisher pub_cloud_;
     ros::Publisher pub_pose_;
-    
+
+    ros::Subscriber debug_sub_;
     ros::ServiceClient nms_client_;
    
     void onInit();
@@ -97,7 +97,7 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
                          const sensor_msgs::Imu::ConstPtr &,
                          const nav_msgs::Odometry::ConstPtr &,
                          const jsk_msgs::ProjectionMatrix::ConstPtr &);
-   
+    float caffeClassifer(cv::cuda::GpuMat);
     cv::Point2f traceandDetectLandingMarker(cv::Mat, const cv::Mat,
                                             const cv::Size);
     cv::Mat convertImageToMat(const sensor_msgs::Image::ConstPtr &,
@@ -108,6 +108,8 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
     Point3DStamped pointToWorldCoords(const jsk_msgs::ProjectionMatrix,
                                       const float, const float);
     void predictVehicleRegion(cv::Point2f &, const MotionInfo*);
+
+    void imageCBDebug(const sensor_msgs::Image::ConstPtr &);
 };
 
 

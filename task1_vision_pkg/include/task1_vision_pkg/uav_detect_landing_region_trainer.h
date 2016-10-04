@@ -20,6 +20,8 @@
 #include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudaobjdetect.hpp>
+#include <opencv2/cudawarping.hpp>
+#include <opencv2/cudaarithm.hpp>
 
 class UAVLandingRegionTrainer {
 
@@ -36,8 +38,9 @@ class UAVLandingRegionTrainer {
                                        const std::string, const std::string,
                                        const std::string, const std::string);
     void getTrainingDataset(cv::Mat &, cv::Mat &, const std::string);
-    void readAndExtractImageFeatures(std::string &);
+    void readAndExtractImageFeatures(std::string &, const std::string);
     cv::Mat extractFeauture(cv::Mat &);
+    cv::cuda::GpuMat extractFeauture(cv::cuda::GpuMat &);
     void trainSVM(const cv::Mat, const cv::Mat, std::string);
     cv::Mat regionletFeatures(const cv::Mat, const cv::Size);
 
