@@ -74,6 +74,8 @@ class UAVLandingRegion: public UAVLandingRegionTrainer {
 
     MotionInfo motion_info_[2];
     int icounter_;
+
+    boost::shared_ptr<caffe::Net<float> > net_;
    
  protected:
     ros::NodeHandle pnh_;

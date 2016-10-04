@@ -1,19 +1,24 @@
 <launch>
-  <arg name="image" default="/downward_cam/camera/image" />
-  <arg name="projection" default="/projection_matrix" />
+  
+  <arg name="TRAIN_DETECTOR" default="false" />
+  <arg name="IMAGE" default="/downward_cam/camera/image" />
+  <arg name="PROJECTION" default="/projection_matrix" />
   
   <node pkg="task1_vision_pkg" type="uav_detect_landing_region_node"
 	name="uav_detect_landing_region" output="screen" >
-    <remap from="input_image" to="$(arg image)" />
+    <remap from="input_image" to="$(arg IMAGE)" />
     <remap from="input_imu" to="/raw_imu" />
     <remap from="input_odom" to="/ground_truth/state" />
 
     <!-- <remap from="input_mask" to="/track_region_mapping/output/track_mask" /> -->
-    <remap from="input_mask" to="$(arg image)" />
-    <remap from="input_proj_mat" to="$(arg projection)" />
+    <remap from="input_mask" to="$(arg IMAGE)" />
+    <remap from="input_proj_mat" to="$(arg PROJECTION)" />
 
-    <param name="data_directory" value="$(find task1_vision_pkg)/" />
-    <remap from="data_directory" to="/uav_detect_landing_region/data_directory" />
+    <param name="train_detector" value="$(arg TRAIN_DETECTOR)" />
+    <remap from="train_detector" to="/uav_detect_landing_region/train_detector" />
+
+    <param name="pkg_directory" value="$(find task1_vision_pkg)/" />
+    <remap from="pkg_directory" to="/uav_detect_landing_region/pkg_directory" />
     <param name="caffe_solver_path" value="$(find task1_vision_pkg)/models/uav_landing_region_solver.prototxt" />
     <remap from="caffe_solver_path" to="/uav_detect_landing_region/caffe_solver_path" />
 
@@ -29,27 +34,30 @@
 
    </node>
 
-   <!-- load skeletonization -->
-
-   <!-- <node pkg="task1_vision_pkg" type="gpu_skeletonization_node" -->
-   <!-- 	 name="gpu_skeletonization" output="screen" > -->
-   <!--   <remap from="input_image" to="/track_region_mapping/output/track_mask" /> -->
-   <!-- </node> -->
 
   <node pkg="task1_vision_pkg" type="non_maximum_suppression.py"
   	name="non_maximum_suppression" output="screen" >
     <remap from="non_maximum_suppression" to="non_maximum_suppression" />
   </node>
+  
+  
+  <group if="$(arg TRAIN_DETECTOR)" > 
+    <node pkg="task1_vision_pkg" type="caffe_hdf5_convertor.py"
+  	  name="caffe_hdf5_convertor" output="screen" >
+      <remap from="caffe_hdf5_convertor" to="caffe_hdf5_convertor" />
+    </node>
+    <node pkg="task1_vision_pkg" type="caffe_network.py"
+  	  name="caffe_network" output="screen" >
+      <remap from="caffe_network" to="caffe_network" />
+    </node>
+  </group>
 
-  <node pkg="task1_vision_pkg" type="caffe_hdf5_convertor.py"
-  	name="caffe_hdf5_convertor" output="screen" >
-    <remap from="caffe_hdf5_convertor" to="caffe_hdf5_convertor" />
-  </node>
 
-  <node pkg="task1_vision_pkg" type="caffe_network.py"
-  	name="caffe_network" output="screen" >
-    <remap from="caffe_network" to="caffe_network" />
-  </node>
+  <!-- load skeletonization -->
+  <!-- <node pkg="task1_vision_pkg" type="gpu_skeletonization_node" -->
+  <!-- 	 name="gpu_skeletonization" output="screen" > -->
+  <!--   <remap from="input_image" to="/track_region_mapping/output/track_mask" /> -->
+  <!-- </node> -->
   
   <!-- <node pkg="task1_vision_pkg" type="track_region_mapping.py" -->
   <!-- 	name="track_region_mapping" output="screen" > -->

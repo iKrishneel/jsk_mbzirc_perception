@@ -94,17 +94,8 @@ def caffe_hdf5_convertor_server():
     s = rospy.Service('caffe_hdf5_convertor', 
                       CaffeHdf5Convertor, 
                       caffe_hdf5_convertor_handler)
-    rospy.spin()
-        
-# def main(argv):
-#     read_path = 'features/' + SAVE_NAME + '_features.txt'
-#     features, labels = features_from_file_with_shuffle(read_path)
-#     if features.shape[0] != labels.shape[0]:
-#         print("error incorrect dimensions")
-#         return
-#     save_to_hdf5(SAVE_NAME, features, labels)
+    rospy.spin()        
         
 if __name__ == "__main__":
-    #main(sys.argv)
     caffe_hdf5_convertor_server()
         
