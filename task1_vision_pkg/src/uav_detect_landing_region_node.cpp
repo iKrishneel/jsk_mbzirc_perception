@@ -44,22 +44,13 @@ UAVLandingRegion::UAVLandingRegion() :
     
     caffe::Caffe::SetDevice(0);
     caffe::Caffe::set_mode(caffe::Caffe::GPU);
-
     net_.reset(new caffe::Net<float>(caffe_test_network, caffe::TEST));
     net_->CopyTrainedLayersFrom(caffe_model);
 
     ROS_INFO("\033[34m LOADED CAFFE MODEL \033[0m");
-    LOG(INFO) << "Blob size: "<< net_->input_blobs().size();
-
-    
+    // LOG(INFO) << "Blob size: "<< net_->input_blobs().size();
     
     //! prediction
-    /**
-     * READ TEXT
-     */
-    // std::ifstream in_file;
-    // in_file.open("/home/krishneel/Desktop/test_features.txt", std::ios::in);
-
 
     cv::Mat image = cv::imread(pkg_directory + "/data/positive/frame0000.jpg");
     cv::Mat feat = this->extractFeauture(image);
@@ -71,9 +62,7 @@ UAVLandingRegion::UAVLandingRegion() :
     //           std::istream_iterator<float>(),
     //           std::back_inserter(test_features));
     // std::cout << test_features.size()  << "\n";
-    
-    
-    // float data[324];
+
     caffe::Blob<float>* data_layer = net_->input_blobs()[0];
 
     std::vector<cv::Mat>* input_channels;
@@ -92,7 +81,7 @@ UAVLandingRegion::UAVLandingRegion() :
     std::clock_t start;
     start = std::clock();
     
-    LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
+    // LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
     net_->Forward();
 
     caffe::Blob<float>* output_layer = net_->output_blobs()[0];
