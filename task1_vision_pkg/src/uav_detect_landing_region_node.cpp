@@ -10,39 +10,40 @@ UAVLandingRegion::UAVLandingRegion() :
     this->nms_client_ = this->pnh_.serviceClient<
        jsk_tasks::NonMaximumSuppression>("non_maximum_suppression");
     
-    this->svm_ = cv::ml::SVM::create();
-
-    //! svm load or save path
-    std::string svm_path;
-    /*
-    this->pnh_.getParam("svm_path", svm_path);
-    if (svm_path.empty()) {
-       ROS_ERROR("NOT SVM DETECTOR PATH. PROVIDE A VALID PATH");
-       return;
-    }
-    */
-    //! train svm
+    // this->svm_ = cv::ml::SVM::create();
+    
     bool is_train = true;
+    this->pnh_.getParam("train_detector", is_train);
     if (is_train) {
-       std::string object_data_path;
-       std::string background_dataset_path;
-       this->pnh_.getParam("object_dataset_path", object_data_path);
-       this->pnh_.getParam("background_dataset_path", background_dataset_path);
-
-       std::string data_path;
-       this->pnh_.getParam("data_directory", data_path);
+       std::string data_directory;
+       std::string caffe_solver_path;
+       std::string train_pos_data_path;
+       std::string train_neg_data_path;
+       std::string test_pos_data_path;
+       std::string test_neg_data_path;
+       this->pnh_.getParam("data_directory", data_directory);
+       this->pnh_.getParam("caffe_solver_path", caffe_solver_path);
+       this->pnh_.getParam("train_positive_dataset", train_pos_data_path);
+       this->pnh_.getParam("train_negative_dataset", train_neg_data_path);
+       this->pnh_.getParam("test_positive_dataset", test_pos_data_path);
+       this->pnh_.getParam("test_negative_dataset", test_neg_data_path);
        
-       this->trainUAVLandingRegionDetector(data_path, object_data_path,
-                                           background_dataset_path, svm_path);
+       this->trainUAVLandingRegionDetector(pnh_, data_directory,
+                                           caffe_solver_path,
+                                           train_pos_data_path,
+                                           train_neg_data_path,
+                                           test_pos_data_path,
+                                           test_neg_data_path);
        
-       ROS_INFO("\033[34m-- SVM DETECTOR SUCCESSFULLY TRAINED \033[0m");
+       ROS_INFO("\033[34m DETECTOR SUCCESSFULLY TRAINED \033[0m");
     }
-    // TODO(BUG):  the loaded model doesnot work....
-    // this->svm_->load(static_cast<std::string>(svm_path));
-    // this->svm_ = cv::Algorithm::load<cv::ml::SVM>(svm_path);
     
     ROS_INFO("\033[34m-- SVM DETECTOR SUCCESSFULLY LOADED \033[0m");
     return;
+
+    // --------------------------------
+
+
     
     this->onInit();
 

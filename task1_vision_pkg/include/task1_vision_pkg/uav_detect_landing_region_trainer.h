@@ -7,9 +7,13 @@
 #include <ros/console.h>
 
 #include <task1_vision_pkg/histogram_of_oriented_gradients.h>
+#include <task1_vision_pkg/CaffeHdf5Convertor.h>
+#include <task1_vision_pkg/CaffeNetwork.h>
+
+#include <std_msgs/String.h>
+
 #include <fstream>
 #include <boost/thread/mutex.hpp>
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -27,10 +31,12 @@ class UAVLandingRegionTrainer {
 
  public:
     UAVLandingRegionTrainer();
-    void trainUAVLandingRegionDetector(const std::string, const std::string,
+    void trainUAVLandingRegionDetector(ros::NodeHandle,
+                                       const std::string, const std::string,
+                                       const std::string, const std::string,
                                        const std::string, const std::string);
     void getTrainingDataset(cv::Mat &, cv::Mat &, const std::string);
-    void uploadDataset(const std::string);
+    void readAndExtractImageFeatures(std::string &);
     cv::Mat extractFeauture(cv::Mat &);
     void trainSVM(const cv::Mat, const cv::Mat, std::string);
     cv::Mat regionletFeatures(const cv::Mat, const cv::Size);

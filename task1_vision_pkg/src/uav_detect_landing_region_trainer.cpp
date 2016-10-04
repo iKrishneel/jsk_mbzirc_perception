@@ -14,26 +14,72 @@ UAVLandingRegionTrainer::UAVLandingRegionTrainer() :
 }
 
 void UAVLandingRegionTrainer::trainUAVLandingRegionDetector(
-    const std::string data_directory, const std::string positive_path,
-    const std::string negative_path, const std::string svm_path) {
-    this->positive_data_path_ = positive_path;
-    this->negative_data_path_ = negative_path;
-    this->svm_save_path_ = svm_path;
+    ros::NodeHandle phn,
+    const std::string data_directory, const std::string caffe_solver_path,
+    const std::string train_pos_path, const std::string train_neg_path,
+    const std::string test_pos_path, const std::string test_neg_path) {
+   
+    this->positive_data_path_ = train_pos_path;
+    this->negative_data_path_ = train_neg_path;
     this->data_directory_ = data_directory;
-    
-    std::cout << "ABOUT TO TRAIN"  << "\n";
-    this->uploadDataset(svm_path);
-}
 
-void UAVLandingRegionTrainer::uploadDataset(
-    const std::string dpath) {
-    /*
-    if (!dpath.empty()) {
-       ROS_ERROR("PROVIDE DATASET TEXT FILE PATH");
+    ROS_INFO("\033[33m READING AND EXTRACTING FEATURES\33[0m");
+    std::string train_feature_path;
+    this->readAndExtractImageFeatures(train_feature_path);
+    
+    this->positive_data_path_ = test_pos_path;
+    this->negative_data_path_ = test_neg_path;
+    std::string test_feature_path;
+    this->readAndExtractImageFeatures(test_feature_path);
+    
+    if (train_feature_path.empty() || test_feature_path.empty()) {
+       ROS_ERROR("FILE NOT WRITTEN");
        return;
     }
-   */
-    // read text file and extract features and labels
+
+    //! create hdf5
+    ROS_INFO("\033[33m CREATING CAFFE HDF5\33[0m");
+    ros::ServiceClient hdf5_client = phn.serviceClient<
+       task1_vision_pkg::CaffeHdf5Convertor>("caffe_hdf5_convertor");
+    task1_vision_pkg::CaffeHdf5Convertor hdf5_srv;
+
+    std_msgs::String p_str;
+    p_str.data = train_feature_path;
+    std_msgs::String p_str1;
+    p_str1.data = "landing_marker_train_features";
+
+    hdf5_srv.request.feature_file_path = p_str;
+    hdf5_srv.request.hdf5_filename = p_str1;
+    if (!hdf5_client.call(hdf5_srv)) {
+       ROS_ERROR("HDF5 CONVERTOR FOR TRAIN SRV FAILED!");
+       return;
+    }
+
+    p_str.data = test_feature_path;
+    p_str1.data = "landing_marker_test_features";
+
+    hdf5_srv.request.feature_file_path = p_str;
+    hdf5_srv.request.hdf5_filename = p_str1;
+    if (!hdf5_client.call(hdf5_srv)) {
+       ROS_ERROR("HDF5 CONVERTOR FOR TEST SRV FAILED!");
+       return;
+    }
+    
+    ROS_INFO("\033[33m TRAINING NEURAL NET\33[0m");
+    ros::ServiceClient caf_net_client = phn.serviceClient<
+       task1_vision_pkg::CaffeNetwork>("caffe_network");
+    task1_vision_pkg::CaffeNetwork net_srv;
+    net_srv.request.caffe_solver_path.data = caffe_solver_path;
+    if (!caf_net_client.call(net_srv)) {
+       ROS_ERROR("CAFFE NET SRV FAILED!");
+       return;
+    }
+
+    ROS_INFO("\033[34m TRAINED SUCCESSFULLY\33[0m");
+}
+
+void UAVLandingRegionTrainer::readAndExtractImageFeatures(
+    std::string &feature_txt_path) {
     cv::Mat feature_vector;
     cv::Mat labels;
     this->getTrainingDataset(feature_vector, labels, this->positive_data_path_);
@@ -42,33 +88,26 @@ void UAVLandingRegionTrainer::uploadDataset(
     cv::Mat labelMD;
     labels.convertTo(labelMD, CV_32S);
 
-    //! write features to file
     if (labelMD.rows != feature_vector.rows) {
        ROS_ERROR("LABEL AND FEATURE DIMENSIONS ARE NOT SAME");
        return;
     }
     char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-       // fprintf(stdout, "Current working dir: %s\n", cwd);
-    } else {
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
        ROS_ERROR("WORKING DIRECTORY ERROR");
        return;
     }
     
-    std::string feature_txt_path = std::string(cwd) + "features_labels.txt";
+    feature_txt_path = std::string(cwd) + "/features_labels.txt";
     std::ofstream outfile(feature_txt_path.c_str(), std::ios::out);
     for (int j = 0; j < feature_vector.rows; j++) {
        for (int i = 0; i < feature_vector.cols; i++) {
           outfile << feature_vector.at<float>(j, i) << " ";
        }
-       outfile << std::endl;
+       outfile << labelMD.at<int>(j, 0)  << std::endl;
     }
     outfile.close();
-    
     ROS_INFO("WRITING FEATURES TO FILE");
-    
-    // train
-    // this->trainSVM(feature_vector, labelMD, this->svm_save_path_);
 }
 
 void UAVLandingRegionTrainer::getTrainingDataset(
@@ -117,7 +156,9 @@ cv::Mat UAVLandingRegionTrainer::extractFeauture(
     }
     cv::resize(image, image, this->sliding_window_size_);
     cv::cuda::GpuMat d_image(image);
-    cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
+    if (image.channels() > 1) {
+       cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
+    }
     cv::cuda::GpuMat d_descriptor;
     this->d_hog_->compute(d_image, d_descriptor);
 

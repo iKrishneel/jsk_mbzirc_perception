@@ -12,17 +12,20 @@
     <remap from="input_mask" to="$(arg image)" />
     <remap from="input_proj_mat" to="$(arg projection)" />
 
-    <param name="svm_path" value="$(find task1_vision_pkg/data/svm.xml" />
-    <remap from="svm_path" to="/uav_detect_landing_region/svm_path" />
+    <param name="data_directory" value="$(find task1_vision_pkg)/" />
+    <remap from="data_directory" to="/uav_detect_landing_region/data_directory" />
+    <param name="caffe_solver_path" value="$(find task1_vision_pkg)/models/uav_landing_region_solver.prototxt" />
+    <remap from="caffe_solver_path" to="/uav_detect_landing_region/caffe_solver_path" />
 
-    <param name="object_dataset_path" value="$(find task1_vision_pkg)/data/positive.txt" />
-    <remap from="object_dataset_path" to="/uav_detect_landing_region/object_dataset_path" />
-   
-     <param name="background_dataset_path" value="$(find task1_vision_pkg)/data/negative.txt" />
-     <remap from="background_dataset_path" to="/uav_detect_landing_region/background_dataset_path" />
+    <param name="train_positive_dataset" value="$(find task1_vision_pkg)/data/train_positive.txt" />
+    <remap from="train_positive_dataset" to="/uav_detect_landing_region/train_positive_dataset" />
+    <param name="train_negative_dataset" value="$(find task1_vision_pkg)/data/train_negative.txt" />
+    <remap from="train_negative_dataset" to="/uav_detect_landing_region/train_negative_dataset" />
 
-     <param name="data_directory" value="$(find task1_vision_pkg)/" />
-     <remap from="data_directory" to="/uav_detect_landing_region/data_directory" />
+    <param name="test_positive_dataset" value="$(find task1_vision_pkg)/data/test_positive.txt" />
+    <remap from="test_positive_dataset" to="/uav_detect_landing_region/test_positive_dataset" />
+    <param name="test_negative_dataset" value="$(find task1_vision_pkg)/data/test_negative.txt" />
+    <remap from="test_negative_dataset" to="/uav_detect_landing_region/test_negative_dataset" />
 
    </node>
 
@@ -36,6 +39,16 @@
   <node pkg="task1_vision_pkg" type="non_maximum_suppression.py"
   	name="non_maximum_suppression" output="screen" >
     <remap from="non_maximum_suppression" to="non_maximum_suppression" />
+  </node>
+
+  <node pkg="task1_vision_pkg" type="caffe_hdf5_convertor.py"
+  	name="caffe_hdf5_convertor" output="screen" >
+    <remap from="caffe_hdf5_convertor" to="caffe_hdf5_convertor" />
+  </node>
+
+  <node pkg="task1_vision_pkg" type="caffe_network.py"
+  	name="caffe_network" output="screen" >
+    <remap from="caffe_network" to="caffe_network" />
   </node>
   
   <!-- <node pkg="task1_vision_pkg" type="track_region_mapping.py" -->

@@ -14,7 +14,9 @@ set(CAFFE_LINK_LIBRARAY caffe/build/lib)
 add_service_files(
   FILES
   NonMaximumSuppression.srv
-  Skeletonization.srv)
+  Skeletonization.srv
+  CaffeHdf5Convertor.srv
+  CaffeNetwork.srv)
 
 generate_messages(
   DEPENDENCIES

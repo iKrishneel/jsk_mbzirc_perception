@@ -1,0 +1,4 @@
+std_msgs/String feature_file_path
+std_msgs/String hdf5_filename
+---
+int64 status
