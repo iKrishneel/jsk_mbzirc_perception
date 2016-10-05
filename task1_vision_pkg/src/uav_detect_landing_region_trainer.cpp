@@ -6,7 +6,7 @@ UAVLandingRegionTrainer::UAVLandingRegionTrainer() :
     this->hog_ = boost::shared_ptr<HOGFeatureDescriptor>(
        new HOGFeatureDescriptor());
     this->sliding_window_size_ = cv::Size(32, 32);
-
+    
     this->d_hog_ = cv::cuda::HOG::create(this->sliding_window_size_,
                                          cv::Size(16, 16),
                                          cv::Size(8, 8),
@@ -182,14 +182,16 @@ cv::Mat UAVLandingRegionTrainer::extractFeauture(
 }
 
 cv::cuda::GpuMat UAVLandingRegionTrainer::extractFeauture(
-    cv::cuda::GpuMat &d_image) {
+    cv::cuda::GpuMat &d_image, bool is_resize) {
     if (d_image.empty()) {
        return cv::cuda::GpuMat();
     }
     if (d_image.channels() > 1) {
        cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
     }
-    cv::cuda::resize(d_image, d_image, this->sliding_window_size_);
+    if (is_resize) {
+       cv::cuda::resize(d_image, d_image, this->sliding_window_size_);
+    }
     cv::cuda::GpuMat d_descriptor;
     this->d_hog_->compute(d_image, d_descriptor);
     return d_descriptor;

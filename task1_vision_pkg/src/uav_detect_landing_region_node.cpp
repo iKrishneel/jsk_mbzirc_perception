@@ -49,28 +49,22 @@ UAVLandingRegion::UAVLandingRegion() :
 
     ROS_INFO("\033[34m LOADED CAFFE MODEL \033[0m");
 
-
+    /*
     cv::Mat image = cv::imread(
        "/home/krishneel/Desktop/mbzirc/track-data/frame0000.jpg");
-    cv::resize(image, image, cv::Size(320, 240));
-
-    std::clock_t start;
-    double duration;
-    start = std::clock();
-    
+    cv::resize(image, image, cv::Size(320, 240));    
     this->traceandDetectLandingMarker(image, image,
                                       this->sliding_window_size_);
 
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout<<"printf: "<< duration <<'\n';
     
     
     // cv::cuda::GpuMat d_image(image);
     // cv::cuda::GpuMat feat = this->extractFeauture(d_image);
     // this->caffeClassifer(feat);
     cv::waitKey(0);
-
-    // this->onInit();
+    */
+    
+    this->onInit();
 }
 
 void UAVLandingRegion::onInit() {
@@ -211,11 +205,9 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     cv::cuda::GpuMat d_image(img);
     
     if (image.type() != CV_8UC1) {
-       // cv::cvtColor(image, image, CV_BGR2GRAY);
        cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
     }
-
-    // cv::GaussianBlur(img, img, cv::Size(5, 5), 1, 0);
+    
     cv::Ptr<cv::cuda::Filter> filter = cv::cuda::createGaussianFilter(
        d_image.type(), d_image.type(), cv::Size(5, 5), 1);
     filter->apply(d_image, d_image);
@@ -224,18 +216,50 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
        cv::cuda::createCannyEdgeDetector(50.0, 100.0, 3, true);
     cv::cuda::GpuMat d_edge;
     canny_edge->detect(d_image, d_edge);
-    
-    // cv::Mat im_edge;
-    // cv::Canny(image, im_edge, 50, 100);
 
     jsk_tasks::NonMaximumSuppression nms_srv;
-    const int stride = 4;
+    const int stride = 8;
     cv::cuda::GpuMat d_roi;
-    cv::cuda::GpuMat d_desc;
+    cv::cuda::GpuMat d_desc;  // = this->extractFeauture(d_image, false);
+    cv::cuda::GpuMat d_desc1 = this->extractFeauture(d_image, false);
+
+    std::cout << "DESC: " << d_desc1.size() << " " << d_image.size()  << "\n";
+
+    // cv::Mat det_img = img.clone();
+    int y = 0;
+    int x = 0;
+    for (int i = 0; i < d_desc1.rows; i++) {
+       d_desc = d_desc1.row(i);
+       float response = this->caffeClassifer(d_desc);
+       
+       if  (x >= d_image.cols) {
+          y += stride;
+          x = 0;
+       }
+       cv::Rect rect = cv::Rect(x, y, this->sliding_window_size_.width,
+                                this->sliding_window_size_.height);
+       
+       if (response == 1) {
+          jsk_msgs::Rect bbox;
+          bbox.x = rect.x;
+          bbox.y = rect.y;
+          bbox.width = rect.width;
+          bbox.height = rect.height;
+          
+          nms_srv.request.rect.push_back(bbox);
+          nms_srv.request.probabilities.push_back(response);
+          // cv::rectangle(det_img, rect, cv::Scalar(0, 255, 0), 2);
+          // std::cout << "Found: " << i  << "\n";
+
+       }
+       x += stride;
+    }
     
-    cv::Mat det_img = img.clone();
+    // cv::imshow("res", det_img);
     
-    
+    /*
+
+    int icounter = 0;
     for (int j = 0; j < img.rows; j += stride) {
        for (int i = 0; i < img.cols; i += stride) {
           // if (static_cast<int>(img.at<uchar>(j, i)) != 0) {
@@ -244,10 +268,15 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
                  rect.y + rect.height < image.rows) {
                 
                 d_roi = d_image(rect);
-                // cv::cuda::resize(d_roi, d_roi, this->sliding_window_size_);
+                cv::cuda::resize(d_roi, d_roi, this->sliding_window_size_);
                 d_desc = this->extractFeauture(d_roi);
-                
                 float response = this->caffeClassifer(d_desc);
+
+                icounter++;
+                
+                
+                // d_roi = d_desc(rect);
+                // float response = this->caffeClassifer(d_roi);
                 
                 if (response == 1) {
 
@@ -267,6 +296,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
              // }
        }
     }
+    */
     
     nms_srv.request.threshold = this->nms_thresh_;
 

@@ -40,7 +40,7 @@ class UAVLandingRegionTrainer {
     void getTrainingDataset(cv::Mat &, cv::Mat &, const std::string);
     void readAndExtractImageFeatures(std::string &, const std::string);
     cv::Mat extractFeauture(cv::Mat &);
-    cv::cuda::GpuMat extractFeauture(cv::cuda::GpuMat &);
+    cv::cuda::GpuMat extractFeauture(cv::cuda::GpuMat &, bool = true);
     void trainSVM(const cv::Mat, const cv::Mat, std::string);
     cv::Mat regionletFeatures(const cv::Mat, const cv::Size);
 
