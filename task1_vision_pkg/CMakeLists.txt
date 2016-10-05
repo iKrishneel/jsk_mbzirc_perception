@@ -69,18 +69,22 @@ if(ENABLE_CUDA)
       ${catkin_LIBRARIES}
       )
 
+    #build for landing site detection
+    link_directories(${CAFFE_LINK_LIBRARAY})
+
+    cuda_add_executable(uav_detect_landing_region_node
+      src/uav_detect_landing_region_node.cpp
+      src/histogram_of_oriented_gradients.cpp
+      src/uav_detect_landing_region_trainer.cpp
+      )
+target_link_libraries(uav_detect_landing_region_node ${catkin_LIBRARIES} ${OpenCV_LIBS} caffe glog
+  )
+
+
 else()
   add_executable(uav_img2pointcloud src/img2pointcloud/uav_img2pointcloud.cpp)
   target_link_libraries(uav_img2pointcloud ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 endif(ENABLE_CUDA)
 
 
-#build for landing site detection
-link_directories(${CAFFE_LINK_LIBRARAY})
-add_executable(uav_detect_landing_region_node
-  src/uav_detect_landing_region_node.cpp
-  src/histogram_of_oriented_gradients.cpp
-  src/uav_detect_landing_region_trainer.cpp
-  )
-target_link_libraries(uav_detect_landing_region_node ${catkin_LIBRARIES} ${OpenCV_LIBS} caffe glog)
 

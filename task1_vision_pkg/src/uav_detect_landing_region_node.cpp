@@ -50,18 +50,27 @@ UAVLandingRegion::UAVLandingRegion() :
     ROS_INFO("\033[34m LOADED CAFFE MODEL \033[0m");
 
 
-    // cv::Mat image = cv::imread(
-    //    "/home/krishneel/Desktop/mbzirc/track-data/frame0000.jpg");
-    // cv::resize(image, image, cv::Size(320, 240));
+    cv::Mat image = cv::imread(
+       "/home/krishneel/Desktop/mbzirc/track-data/frame0000.jpg");
+    cv::resize(image, image, cv::Size(320, 240));
+
+    std::clock_t start;
+    double duration;
+    start = std::clock();
     
-    // this->traceandDetectLandingMarker(image, image,
-    //                                   this->sliding_window_size_);    
+    this->traceandDetectLandingMarker(image, image,
+                                      this->sliding_window_size_);
+
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout<<"printf: "<< duration <<'\n';
+    
+    
     // cv::cuda::GpuMat d_image(image);
     // cv::cuda::GpuMat feat = this->extractFeauture(d_image);
     // this->caffeClassifer(feat);
+    cv::waitKey(0);
 
-
-    this->onInit();
+    // this->onInit();
 }
 
 void UAVLandingRegion::onInit() {
@@ -222,21 +231,21 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     jsk_tasks::NonMaximumSuppression nms_srv;
     const int stride = 4;
     cv::cuda::GpuMat d_roi;
-
+    cv::cuda::GpuMat d_desc;
     
     cv::Mat det_img = img.clone();
     
     
     for (int j = 0; j < img.rows; j += stride) {
        for (int i = 0; i < img.cols; i += stride) {
-          if (static_cast<int>(img.at<uchar>(j, i)) != 0) {
+          // if (static_cast<int>(img.at<uchar>(j, i)) != 0) {
              cv::Rect rect = cv::Rect(i, j, wsize.width, wsize.height);
              if (rect.x + rect.width < image.cols &&
                  rect.y + rect.height < image.rows) {
                 
                 d_roi = d_image(rect);
-                cv::cuda::resize(d_roi, d_roi, this->sliding_window_size_);
-                cv::cuda::GpuMat d_desc = this->extractFeauture(d_roi);
+                // cv::cuda::resize(d_roi, d_roi, this->sliding_window_size_);
+                d_desc = this->extractFeauture(d_roi);
                 
                 float response = this->caffeClassifer(d_desc);
                 
@@ -255,10 +264,10 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
 
                 }
              }
-          }
+             // }
        }
     }
-
+    
     nms_srv.request.threshold = this->nms_thresh_;
 
     //! 2 - non_max_suprresion
@@ -304,15 +313,16 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
 float UAVLandingRegion::caffeClassifer(cv::cuda::GpuMat d_desc) {
    
     caffe::Blob<float>* data_layer = this->net_->input_blobs()[0];
-    float* input_data = data_layer->mutable_cpu_data();
     const int BYTE = sizeof(float) * data_layer->height();
-    // float* input_data = data_layer->mutable_gpu_data();
-
+    /*
+    float* input_data = data_layer->mutable_cpu_data();
     cv::Mat feat;
     d_desc.download(feat);
-
-    // std::memcpy(input_data, d_desc.data, BYTE);
     std::memcpy(input_data, feat.data, BYTE);
+    */
+    
+    float* input_data_gpu = data_layer->mutable_gpu_data();
+    cudaMemcpy(input_data_gpu, d_desc.data, BYTE, cudaMemcpyDeviceToDevice);
     
     /*
     for (int i = 0; i < data_layer->height(); ++i) {
@@ -320,7 +330,6 @@ float UAVLandingRegion::caffeClassifer(cv::cuda::GpuMat d_desc) {
                  feat.at<float>(0, i) << "\n";
     }
     */
-
     
     // LOG(INFO) << "Blob size: "<< net_->has_blob("fc1");
     this->net_->Forward();
