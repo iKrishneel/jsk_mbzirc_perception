@@ -4,7 +4,7 @@
 #include <task1_vision_pkg/uav_detect_landing_region.h>
 
 UAVLandingRegion::UAVLandingRegion() :
-    down_size_(2), ground_plane_(0.0), track_width_(3.0f),
+    down_size_(1), ground_plane_(0.0), track_width_(3.0f),
     landing_marker_width_(1.1f), min_wsize_(8), nms_thresh_(0.01f),
     icounter_(0), num_threads_(16) {
     this->nms_client_ = this->pnh_.serviceClient<
@@ -207,7 +207,7 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
     if (image.type() != CV_8UC1) {
        cv::cuda::cvtColor(d_image, d_image, CV_BGR2GRAY);
     }
-    
+    /*
     cv::Ptr<cv::cuda::Filter> filter = cv::cuda::createGaussianFilter(
        d_image.type(), d_image.type(), cv::Size(5, 5), 1);
     filter->apply(d_image, d_image);
@@ -216,46 +216,47 @@ cv::Point2f UAVLandingRegion::traceandDetectLandingMarker(
        cv::cuda::createCannyEdgeDetector(50.0, 100.0, 3, true);
     cv::cuda::GpuMat d_edge;
     canny_edge->detect(d_image, d_edge);
-
+    */
+    
     jsk_tasks::NonMaximumSuppression nms_srv;
+    int pyramid_level = 1;
     const int stride = 8;
     cv::cuda::GpuMat d_roi;
-    cv::cuda::GpuMat d_desc;  // = this->extractFeauture(d_image, false);
-    cv::cuda::GpuMat d_desc1 = this->extractFeauture(d_image, false);
+    cv::cuda::GpuMat d_desc;
 
-    std::cout << "DESC: " << d_desc1.size() << " " << d_image.size()  << "\n";
-
-    // cv::Mat det_img = img.clone();
-    int y = 0;
-    int x = 0;
-    for (int i = 0; i < d_desc1.rows; i++) {
-       d_desc = d_desc1.row(i);
-       float response = this->caffeClassifer(d_desc);
+    int iter = 0;
+    do {
+       cv::cuda::GpuMat d_desc1 = this->extractFeauture(d_image, false);
+       int y = 0;
+       int x = 0;
+       for (int i = 0; i < d_desc1.rows; i++) {
+          d_desc = d_desc1.row(i);
+          float response = this->caffeClassifer(d_desc);
        
-       if  (x >= d_image.cols) {
-          y += stride;
-          x = 0;
-       }
-       cv::Rect rect = cv::Rect(x, y, this->sliding_window_size_.width,
-                                this->sliding_window_size_.height);
+          if  (x >= d_image.cols) {
+             y += stride;
+             x = 0;
+          }
+          cv::Rect rect = cv::Rect(x, y, this->sliding_window_size_.width,
+                                   this->sliding_window_size_.height);
        
-       if (response == 1) {
-          jsk_msgs::Rect bbox;
-          bbox.x = rect.x;
-          bbox.y = rect.y;
-          bbox.width = rect.width;
-          bbox.height = rect.height;
+          if (response == 1) {
+             jsk_msgs::Rect bbox;
+             bbox.x = rect.x;
+             bbox.y = rect.y;
+             bbox.width = rect.width;
+             bbox.height = rect.height;
           
-          nms_srv.request.rect.push_back(bbox);
-          nms_srv.request.probabilities.push_back(response);
-          // cv::rectangle(det_img, rect, cv::Scalar(0, 255, 0), 2);
-          // std::cout << "Found: " << i  << "\n";
-
+             nms_srv.request.rect.push_back(bbox);
+             nms_srv.request.probabilities.push_back(response);
+          }
+          x += stride;
        }
-       x += stride;
-    }
-    
-    // cv::imshow("res", det_img);
+
+       cv::cuda::pyrUp(d_image, d_image);
+       
+    } while (iter++ < pyramid_level);
+
     
     /*
 
