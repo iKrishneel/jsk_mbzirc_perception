@@ -8,8 +8,10 @@ find_package(catkin REQUIRED COMPONENTS
       roscpp cv_bridge tf message_filters nav_msgs sensor_msgs jsk_mbzirc_msgs)
 find_package(OpenCV REQUIRED)
 
-set(CAFFE_INCLUDEDIR caffe/include caffe/distribute/include caffe/build/include)
-set(CAFFE_LINK_LIBRARAY caffe/build/lib)
+##set(CAFFE_INCLUDEDIR caffe/include caffe/distribute/include caffe/build/include)
+##set(CAFFE_LINK_LIBRARAY caffe/build/lib)
+set(CAFFE_INCLUDEDIR $ENV{CAFFE_ROOT}/include $ENV{CAFFE_ROOT}/distribute/include $ENV{CAFFE_ROOT}/build/include)
+set(CAFFE_LINK_LIBRARAY $ENV{CAFFE_ROOT}/build/lib)
 
 add_service_files(
   FILES
